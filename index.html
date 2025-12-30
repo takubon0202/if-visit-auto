@@ -34,7 +34,7 @@
   <header class="header">
     <div class="header__container">
       <a href="https://if-juku.net/" class="header__logo" target="_blank" rel="noopener">
-        <span class="header__logo-text">if(塾)</span>
+        <img src="https://if-juku.net/images/logo.png" alt="if(塾)" class="header__logo-img">
       </a>
       <nav class="header__nav">
         <a href="https://if-juku.net/" class="header__link" target="_blank" rel="noopener">公式サイト</a>
@@ -324,8 +324,8 @@
           </form>
         </div>
 
-        <!-- 予約変更タブ -->
-        <div class="tab-panel" id="tab-modify">
+        <!-- 予約変更タブ（予約済みユーザーのみ表示） -->
+        <div class="tab-panel tab-panel--reserved" id="tab-modify" style="display: none;">
           <p class="form-section__description">
             予約を変更される場合は、予約IDとメールアドレスを入力してください。<br>
             予約IDは申し込み時にお送りしたメールに記載されています。
@@ -395,8 +395,8 @@
           </form>
         </div>
 
-        <!-- キャンセルタブ -->
-        <div class="tab-panel" id="tab-cancel">
+        <!-- キャンセルタブ（予約済みユーザーのみ表示） -->
+        <div class="tab-panel tab-panel--reserved" id="tab-cancel" style="display: none;">
           <p class="form-section__description">
             予約をキャンセルされる場合は、予約IDとメールアドレスを入力してください。<br>
             <strong style="color: var(--color-error);">キャンセルは取り消しできませんのでご注意ください。</strong>

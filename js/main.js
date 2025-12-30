@@ -391,14 +391,20 @@ const ReservationManager = {
  */
 function updateReservationTabsVisibility() {
   const reservedTabs = document.querySelectorAll('.tab-btn--reserved');
+  const reservedPanels = document.querySelectorAll('.tab-panel--reserved');
   const reservationInfo = document.getElementById('reservation-info');
   const savedIdEl = document.getElementById('saved-reservation-id');
   const reservation = ReservationManager.getReservation();
 
   if (reservation) {
-    // 予約がある場合、変更・キャンセルタブを表示
+    // 予約がある場合、変更・キャンセルタブとパネルを表示可能に
     reservedTabs.forEach(tab => {
       tab.style.display = '';
+    });
+    reservedPanels.forEach(panel => {
+      // パネルはタブクリック時に表示されるので、display:noneを解除するだけ
+      // ただしactiveでない限りはhiddenのまま
+      panel.style.display = '';
     });
     if (reservationInfo) {
       reservationInfo.style.display = 'block';
@@ -418,12 +424,26 @@ function updateReservationTabsVisibility() {
     if (cancelReservationIdEl) cancelReservationIdEl.value = reservation.reservationId;
     if (cancelEmailEl) cancelEmailEl.value = reservation.email;
   } else {
-    // 予約がない場合、変更・キャンセルタブを非表示
+    // 予約がない場合、変更・キャンセルタブとパネルを非表示
     reservedTabs.forEach(tab => {
       tab.style.display = 'none';
     });
+    reservedPanels.forEach(panel => {
+      panel.style.display = 'none';
+      panel.classList.remove('tab-panel--active');
+    });
     if (reservationInfo) {
       reservationInfo.style.display = 'none';
+    }
+
+    // 新規申し込みタブをアクティブにする
+    const newTab = document.querySelector('[data-tab="tab-new"]');
+    const newPanel = document.getElementById('tab-new');
+    if (newTab && newPanel) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-btn--active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('tab-panel--active'));
+      newTab.classList.add('tab-btn--active');
+      newPanel.classList.add('tab-panel--active');
     }
   }
 }

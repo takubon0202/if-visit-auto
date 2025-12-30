@@ -31,12 +31,29 @@ visitor-site/
 │   └── style.css
 ├── js/
 │   ├── config.js      # 設定値（Webhook URL等）
-│   ├── form.js        # フォーム処理
-│   └── main.js        # 初期化・イベント
+│   ├── form.js        # フォーム処理・バリデーション
+│   ├── calendar.js    # 月曜日専用カレンダー
+│   └── main.js        # 初期化・イベント・予約管理
+├── gas/
+│   └── Code.gs        # Google Apps Script
 ├── agents/            # エージェント定義
 ├── docs/              # ドキュメント
 └── CLAUDE.md
 ```
+
+## 主要実装
+
+### 予約タブ表示制御
+- **ReservationManager**: ローカルストレージで予約情報を管理
+- **tab-btn--reserved**: 予約済みユーザーのみ表示されるタブボタン
+- **tab-panel--reserved**: 予約済みユーザーのみ表示されるパネル
+- **updateReservationTabsVisibility()**: 表示/非表示を更新
+
+### 月曜日専用カレンダー
+- **MondayCalendar**: カスタムカレンダークラス
+- 月曜日のみ選択可能
+- 過去の日付は選択不可
+- 時間帯 16:45-18:15 を表示
 
 ## 出力物
 
