@@ -1,0 +1,39 @@
+// =============================================
+// 設定ファイル - デプロイ前に編集してください
+// =============================================
+
+const CONFIG = {
+  // Discord Webhook URL
+  // 取得方法: サーバー設定 → 連携サービス → ウェブフック → 新しいウェブフック
+  DISCORD_WEBHOOK_URL: 'YOUR_DISCORD_WEBHOOK_URL',
+
+  // Discord招待リンク
+  // 取得方法: サーバー設定 → 招待 → 招待リンクを作成
+  DISCORD_INVITE_URL: 'YOUR_DISCORD_INVITE_LINK',
+
+  // 塾情報
+  JUKU: {
+    name: 'if(塾)',
+    tagline: '学校だけが学びの場所じゃない',
+    website: 'https://if-juku.net/',
+  },
+
+  // 見学情報
+  VISIT: {
+    day: '毎週月曜日',
+    timeStart: '16:45',
+    timeEnd: '18:15',
+    classStart: '17:00',
+    classEnd: '18:00',
+  },
+
+  // フォーム設定
+  FORM: {
+    maxMessageLength: 500,
+    submitButtonId: 'submit-btn',
+    formId: 'visit-form',
+  },
+};
+
+// グローバルに公開（モジュール非対応環境用）
+window.CONFIG = CONFIG;
