@@ -1,11 +1,9 @@
 // =============================================
-// フォーム処理
+// フォーム処理（GAS連携・予約変更・キャンセル対応）
 // =============================================
 
 /**
  * 入力値のサニタイズ（XSS対策）
- * @param {string} str - サニタイズする文字列
- * @returns {string} サニタイズ済みの文字列
  */
 function sanitize(str) {
   if (!str) return '';
@@ -14,13 +12,11 @@ function sanitize(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
-    .substring(0, 1000); // 最大長制限
+    .substring(0, 1000);
 }
 
 /**
  * 日付文字列をローカルタイムゾーンでパース
- * @param {string} dateString - YYYY-MM-DD形式の日付文字列
- * @returns {Date} Dateオブジェクト
  */
 function parseLocalDate(dateString) {
   const dateParts = dateString.split('-');
@@ -31,20 +27,20 @@ function parseLocalDate(dateString) {
   );
 }
 
+// =============================================
+// バリデーション
+// =============================================
+
 /**
- * フォームバリデーション
- * @param {Object} formData - フォームデータ
- * @returns {Object} { isValid: boolean, errors: Object }
+ * 新規申し込みフォームのバリデーション
  */
 function validateForm(formData) {
   const errors = {};
 
-  // 名前（必須）
   if (!formData.name || formData.name.trim().length === 0) {
     errors.name = 'お名前を入力してください';
   }
 
-  // メールアドレス（必須・形式チェック）
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!formData.email) {
     errors.email = 'メールアドレスを入力してください';
@@ -52,14 +48,11 @@ function validateForm(formData) {
     errors.email = '有効なメールアドレスを入力してください';
   }
 
-  // 学年（必須）
   if (!formData.grade) {
     errors.grade = '学年を選択してください';
   }
 
-  // 見学希望日（任意だが、入力時は月曜日チェック）
   if (formData.preferredDate) {
-    // YYYY-MM-DD形式をローカルタイムゾーンでパース（タイムゾーン問題の回避）
     const date = parseLocalDate(formData.preferredDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -71,7 +64,6 @@ function validateForm(formData) {
     }
   }
 
-  // メッセージ（任意・最大500文字）
   if (formData.message && formData.message.length > CONFIG.FORM.maxMessageLength) {
     errors.message = `メッセージは${CONFIG.FORM.maxMessageLength}文字以内で入力してください`;
   }
@@ -83,10 +75,73 @@ function validateForm(formData) {
 }
 
 /**
- * エラー表示を更新
- * @param {Object} errors - エラーオブジェクト
+ * 予約変更フォームのバリデーション
  */
-function displayErrors(errors) {
+function validateModifyForm(formData) {
+  const errors = {};
+
+  if (!formData.reservationId || formData.reservationId.trim().length === 0) {
+    errors.modifyReservationId = '予約IDを入力してください';
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!formData.email) {
+    errors.modifyEmail = 'メールアドレスを入力してください';
+  } else if (!emailRegex.test(formData.email)) {
+    errors.modifyEmail = '有効なメールアドレスを入力してください';
+  }
+
+  if (!formData.newDate) {
+    errors.modifyNewDate = '新しい日程を選択してください';
+  } else {
+    const date = parseLocalDate(formData.newDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (date.getDay() !== 1) {
+      errors.modifyNewDate = '見学は月曜日のみ受け付けています';
+    } else if (date < today) {
+      errors.modifyNewDate = '過去の日付は選択できません';
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
+
+/**
+ * キャンセルフォームのバリデーション
+ */
+function validateCancelForm(formData) {
+  const errors = {};
+
+  if (!formData.reservationId || formData.reservationId.trim().length === 0) {
+    errors.cancelReservationId = '予約IDを入力してください';
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!formData.email) {
+    errors.cancelEmail = 'メールアドレスを入力してください';
+  } else if (!emailRegex.test(formData.email)) {
+    errors.cancelEmail = '有効なメールアドレスを入力してください';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
+
+// =============================================
+// エラー表示
+// =============================================
+
+/**
+ * エラー表示を更新
+ */
+function displayErrors(errors, formPrefix = '') {
   // すべてのエラー表示をリセット
   const errorElements = document.querySelectorAll('.form__error');
   errorElements.forEach((el) => {
@@ -102,7 +157,8 @@ function displayErrors(errors) {
   // エラーがあれば表示
   Object.keys(errors).forEach((field) => {
     const errorEl = document.getElementById(`${field}-error`);
-    const inputEl = document.getElementById(field) || document.getElementById(field.replace(/([A-Z])/g, '-$1').toLowerCase());
+    const inputEl = document.getElementById(field) ||
+      document.getElementById(field.replace(/([A-Z])/g, '-$1').toLowerCase());
 
     if (errorEl) {
       errorEl.textContent = errors[field];
@@ -115,73 +171,78 @@ function displayErrors(errors) {
   });
 }
 
+// =============================================
+// API通信
+// =============================================
+
 /**
- * Discord Webhookに見学申し込みを送信
- * @param {Object} formData - フォームデータ
- * @returns {Promise<boolean>} 送信成功/失敗
+ * GASにリクエストを送信
+ */
+async function sendToGAS(action, data) {
+  if (!CONFIG.GAS_WEB_APP_URL || CONFIG.GAS_WEB_APP_URL === 'YOUR_GAS_WEB_APP_URL') {
+    console.error('GAS Web App URLが設定されていません');
+    throw new Error('GAS Web App URLが設定されていません');
+  }
+
+  const payload = {
+    action: action,
+    ...data
+  };
+
+  try {
+    const response = await fetch(CONFIG.GAS_WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors', // CORSエラー回避
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // no-corsモードではレスポンスを読めないので、成功として扱う
+    return { success: true };
+  } catch (error) {
+    console.error('GAS送信エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * Discord Webhookに直接送信（フォールバック用）
  */
 async function sendToDiscord(formData) {
-  // Webhook URLが設定されているか確認
   if (!CONFIG.DISCORD_WEBHOOK_URL || CONFIG.DISCORD_WEBHOOK_URL === 'YOUR_DISCORD_WEBHOOK_URL') {
     console.error('Discord Webhook URLが設定されていません');
     return false;
   }
 
-  // Embedメッセージを構築
   const embed = {
-    title: '新しい見学申し込み',
-    color: 0x4A7C59, // プライマリカラー
+    title: '📋 新しい見学申し込み',
+    color: 0x00ffcc,
     fields: [
+      { name: '👤 お名前', value: sanitize(formData.name) || '未入力', inline: true },
+      { name: '📧 メール', value: sanitize(formData.email) || '未入力', inline: true },
+      { name: '🎓 学年', value: sanitize(formData.grade) || '未選択', inline: true },
       {
-        name: 'お名前',
-        value: sanitize(formData.name) || '未入力',
-        inline: true,
-      },
-      {
-        name: 'メールアドレス',
-        value: sanitize(formData.email) || '未入力',
-        inline: true,
-      },
-      {
-        name: '学年',
-        value: sanitize(formData.grade) || '未選択',
-        inline: true,
-      },
-      {
-        name: '見学希望日',
+        name: '📅 見学希望日',
         value: formData.preferredDate
           ? new Date(formData.preferredDate).toLocaleDateString('ja-JP', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              weekday: 'long',
+              year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
             })
           : '未定・相談したい',
         inline: false,
       },
-      {
-        name: 'ご質問・ご要望',
-        value: sanitize(formData.message) || 'なし',
-        inline: false,
-      },
+      { name: '💬 メッセージ', value: sanitize(formData.message) || 'なし', inline: false },
     ],
-    footer: {
-      text: `送信日時: ${new Date().toLocaleString('ja-JP')}`,
-    },
+    footer: { text: `送信日時: ${new Date().toLocaleString('ja-JP')}` },
   };
 
   try {
     const response = await fetch(CONFIG.DISCORD_WEBHOOK_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: 'if(塾) 見学申込Bot',
-        embeds: [embed],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'if(塾) 見学申込Bot', embeds: [embed] }),
     });
-
     return response.ok;
   } catch (error) {
     console.error('Discord送信エラー:', error);
@@ -189,47 +250,80 @@ async function sendToDiscord(formData) {
   }
 }
 
+// =============================================
+// フォーム送信処理
+// =============================================
+
+/**
+ * 新規申し込みを送信
+ */
+async function submitReservation(formData) {
+  if (CONFIG.MODE.useGAS) {
+    return await sendToGAS('submit', formData);
+  } else {
+    const success = await sendToDiscord(formData);
+    return { success };
+  }
+}
+
+/**
+ * 予約変更を送信
+ */
+async function modifyReservation(formData) {
+  return await sendToGAS('modify', {
+    reservationId: formData.reservationId,
+    email: formData.email,
+    newDate: formData.newDate
+  });
+}
+
+/**
+ * 予約キャンセルを送信
+ */
+async function cancelReservation(formData) {
+  return await sendToGAS('cancel', {
+    reservationId: formData.reservationId,
+    email: formData.email
+  });
+}
+
+// =============================================
+// ユーティリティ
+// =============================================
+
 /**
  * フォームデータを取得
- * @param {HTMLFormElement} form - フォーム要素
- * @returns {Object} フォームデータ
  */
 function getFormData(form) {
   const formData = new FormData(form);
-  return {
-    name: formData.get('name')?.trim() || '',
-    email: formData.get('email')?.trim() || '',
-    grade: formData.get('grade') || '',
-    preferredDate: formData.get('preferredDate') || '',
-    message: formData.get('message')?.trim() || '',
-  };
+  const data = {};
+  for (const [key, value] of formData.entries()) {
+    data[key] = typeof value === 'string' ? value.trim() : value;
+  }
+  return data;
 }
 
 /**
  * 送信結果を表示
- * @param {boolean} success - 成功/失敗
  */
-function showResult(success) {
-  const resultEl = document.getElementById('form-result');
+function showResult(resultEl, success, message) {
   if (!resultEl) return;
 
   resultEl.className = 'form__result';
 
   if (success) {
     resultEl.classList.add('form__result--success');
-    resultEl.textContent = 'お申し込みありがとうございます。担当者より追ってご連絡いたします。';
+    resultEl.innerHTML = message || 'お申し込みありがとうございます。<br>担当者より追ってご連絡いたします。';
   } else {
     resultEl.classList.add('form__result--error');
-    resultEl.textContent = '送信に失敗しました。しばらく経ってから再度お試しください。';
+    resultEl.textContent = message || '送信に失敗しました。しばらく経ってから再度お試しください。';
   }
 }
 
 /**
- * 送信ボタンの状態を更新
- * @param {boolean} loading - ローディング中かどうか
+ * ボタンのローディング状態を更新
  */
-function setButtonLoading(loading) {
-  const btn = document.getElementById(CONFIG.FORM.submitButtonId);
+function setButtonLoading(btn, loading) {
   if (!btn) return;
 
   if (loading) {
@@ -244,8 +338,12 @@ function setButtonLoading(loading) {
 // グローバルに公開
 window.FormHandler = {
   validateForm,
+  validateModifyForm,
+  validateCancelForm,
   displayErrors,
-  sendToDiscord,
+  submitReservation,
+  modifyReservation,
+  cancelReservation,
   getFormData,
   showResult,
   setButtonLoading,
