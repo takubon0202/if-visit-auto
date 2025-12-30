@@ -1369,13 +1369,42 @@ h1, h2, h3, h4, h5, h6 {
   color: #888888;
 }
 
-/* Tab text visibility */
+/* ----- Tabs (タブナビゲーション) ----- */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
 .tab-btn {
+  background: transparent;
+  border: 1px solid rgba(0, 255, 204, 0.3);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--border-radius-pill);
   color: #c0c0c0;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
 }
 
 .tab-btn:hover {
   color: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+}
+
+.tab-btn--active {
+  color: var(--bg-color);
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-color: transparent;
+  box-shadow: var(--glow-primary);
+}
+
+.tab-btn--active:hover {
+  color: var(--bg-color);
 }
 
 /* ----- Reservation Info (予約情報表示) ----- */
