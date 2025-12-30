@@ -42,9 +42,9 @@ class IFRunGame {
       frameTimer: 0
     };
 
-    // 物理
-    this.gravity = 0.8;
-    this.jumpForce = -15;
+    // 物理（マリオ風のふわっとしたジャンプ）
+    this.gravity = 0.4;
+    this.jumpForce = -11;
 
     // 障害物とアイテム
     this.obstacles = [];
@@ -497,6 +497,9 @@ class IFRunGame {
     // 地面
     this.drawGround();
 
+    // ゴールフラグ（ゴールが近づいたら表示）
+    this.drawGoal();
+
     // 障害物
     this.obstacles.forEach(obs => this.drawObstacle(obs));
 
@@ -617,6 +620,122 @@ class IFRunGame {
     // 地面の上部ライン
     this.ctx.fillStyle = '#00AA00';
     this.ctx.fillRect(0, this.groundY - 8, this.width, 8);
+  }
+
+  // ゴールを描画（マリオ風フラッグポール）
+  drawGoal() {
+    if (this.gameState !== 'playing') return;
+
+    // ゴールまでの残り距離
+    const remainingDistance = this.goalDistance - this.distance;
+
+    // ゴールが画面に近づいたら表示（残り500m以内）
+    if (remainingDistance <= 500 && remainingDistance > 0) {
+      // ゴールのX位置を計算
+      const goalX = this.width - 100 + (500 - remainingDistance) * 0.5;
+
+      // 城を描画（ゴールに到達すると表示位置が近づく）
+      this.drawCastle(goalX);
+    }
+
+    // ゴールまでの距離表示（常に表示）
+    if (this.distance > 0) {
+      const remainingM = Math.max(0, Math.floor((this.goalDistance - this.distance) / 10));
+
+      // 残り距離が少なくなると色が変わる
+      let distanceColor = '#FFFFFF';
+      if (remainingM <= 100) {
+        distanceColor = '#00FF00';
+      } else if (remainingM <= 200) {
+        distanceColor = '#FFFF00';
+      }
+
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      this.ctx.fillRect(this.width / 2 - 70, 10, 140, 30);
+
+      this.ctx.fillStyle = distanceColor;
+      this.ctx.font = `bold ${Math.max(14, 16 * this.scale)}px monospace`;
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(`GOAL: ${remainingM}m`, this.width / 2, 30);
+    }
+  }
+
+  // 城を描画
+  drawCastle(x) {
+    const castleWidth = 80;
+    const castleHeight = 120;
+    const baseY = this.groundY - castleHeight;
+
+    // 城本体
+    this.ctx.fillStyle = '#D4A574';
+    this.ctx.fillRect(x, baseY + 40, castleWidth, castleHeight - 40);
+
+    // 城の屋根（三角）
+    this.ctx.fillStyle = '#8B0000';
+    this.ctx.beginPath();
+    this.ctx.moveTo(x - 10, baseY + 40);
+    this.ctx.lineTo(x + castleWidth / 2, baseY);
+    this.ctx.lineTo(x + castleWidth + 10, baseY + 40);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    // 塔（左）
+    this.ctx.fillStyle = '#D4A574';
+    this.ctx.fillRect(x - 5, baseY + 20, 20, 100);
+    this.ctx.fillStyle = '#8B0000';
+    this.ctx.beginPath();
+    this.ctx.moveTo(x - 10, baseY + 20);
+    this.ctx.lineTo(x + 5, baseY - 5);
+    this.ctx.lineTo(x + 20, baseY + 20);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    // 塔（右）
+    this.ctx.fillStyle = '#D4A574';
+    this.ctx.fillRect(x + castleWidth - 15, baseY + 20, 20, 100);
+    this.ctx.fillStyle = '#8B0000';
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + castleWidth - 20, baseY + 20);
+    this.ctx.lineTo(x + castleWidth - 5, baseY - 5);
+    this.ctx.lineTo(x + castleWidth + 10, baseY + 20);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    // 門
+    this.ctx.fillStyle = '#4A3728';
+    this.ctx.fillRect(x + castleWidth / 2 - 15, baseY + 80, 30, 40);
+
+    // 窓
+    this.ctx.fillStyle = '#87CEEB';
+    this.ctx.fillRect(x + 15, baseY + 55, 15, 20);
+    this.ctx.fillRect(x + castleWidth - 30, baseY + 55, 15, 20);
+
+    // GOAL テキスト
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = `bold ${Math.max(12, 14 * this.scale)}px "Press Start 2P", monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.shadowColor = '#000';
+    this.ctx.shadowBlur = 3;
+    this.ctx.fillText('GOAL', x + castleWidth / 2, baseY - 15);
+    this.ctx.shadowBlur = 0;
+
+    // 旗
+    const flagX = x + castleWidth / 2;
+    const flagY = baseY - 10;
+
+    // 旗竿
+    this.ctx.fillStyle = '#8B4513';
+    this.ctx.fillRect(flagX - 2, flagY - 50, 4, 50);
+
+    // 旗（なびく効果）
+    const wave = Math.sin(Date.now() / 200) * 3;
+    this.ctx.fillStyle = '#FF0000';
+    this.ctx.beginPath();
+    this.ctx.moveTo(flagX + 2, flagY - 50);
+    this.ctx.lineTo(flagX + 30 + wave, flagY - 40);
+    this.ctx.lineTo(flagX + 2, flagY - 30);
+    this.ctx.closePath();
+    this.ctx.fill();
   }
 
   // プレイヤー描画
