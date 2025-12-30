@@ -5,7 +5,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   initDiscordLink();
   initForms();
-  initDateInputs();
+  initCalendars();
   initFooterYear();
   initTabs();
   initParticles();
@@ -91,42 +91,50 @@ function initFormValidation(form) {
 }
 
 /**
- * 日付入力の初期化（月曜日のみ選択可能）
+ * カレンダーの初期化（月曜日のみ選択可能）
  */
-function initDateInputs() {
-  const dateInputs = document.querySelectorAll('input[type="date"]');
-
-  dateInputs.forEach(dateInput => {
-    // 最小日付を今日に設定
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    dateInput.min = `${yyyy}-${mm}-${dd}`;
-
-    // 月曜日以外が選択されたら警告
-    dateInput.addEventListener('change', (e) => {
-      const selectedDate = new Date(e.target.value);
-      const errorId = e.target.id + '-error';
-      const errorEl = document.getElementById(errorId);
-
-      if (selectedDate.getDay() !== 1) {
-        e.target.setCustomValidity('月曜日を選択してください');
-        if (errorEl) {
-          errorEl.textContent = '見学は月曜日のみ受け付けています';
-          errorEl.classList.add('form__error--visible');
+function initCalendars() {
+  // 新規申し込みカレンダー
+  if (document.getElementById('calendar-new')) {
+    window.calendarNew = new MondayCalendar('calendar-new', 'preferredDate', {
+      monthsToShow: 3,
+      timeSlot: { start: '16:45', end: '18:15' },
+      onSelect: (date) => {
+        const infoEl = document.getElementById('selected-date-info');
+        const textEl = document.getElementById('selected-date-text');
+        if (infoEl && textEl) {
+          infoEl.style.display = 'block';
+          textEl.textContent = date.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long'
+          });
         }
-        e.target.classList.add('form__input--error');
-      } else {
-        e.target.setCustomValidity('');
-        if (errorEl) {
-          errorEl.textContent = '';
-          errorEl.classList.remove('form__error--visible');
-        }
-        e.target.classList.remove('form__input--error');
       }
     });
-  });
+  }
+
+  // 予約変更カレンダー
+  if (document.getElementById('calendar-modify')) {
+    window.calendarModify = new MondayCalendar('calendar-modify', 'modifyNewDate', {
+      monthsToShow: 3,
+      timeSlot: { start: '16:45', end: '18:15' },
+      onSelect: (date) => {
+        const infoEl = document.getElementById('modify-selected-date-info');
+        const textEl = document.getElementById('modify-selected-date-text');
+        if (infoEl && textEl) {
+          infoEl.style.display = 'block';
+          textEl.textContent = date.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long'
+          });
+        }
+      }
+    });
+  }
 }
 
 /**

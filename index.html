@@ -269,17 +269,21 @@
             </div>
 
             <div class="form__group">
-              <label for="preferredDate" class="form__label">
+              <label class="form__label">
                 見学希望日
                 <span class="form__optional">任意</span>
               </label>
               <input
-                type="date"
+                type="hidden"
                 id="preferredDate"
                 name="preferredDate"
-                class="form__input"
               >
-              <span class="form__hint">月曜日のみ選択可能です。未定の場合は空欄でも構いません。</span>
+              <div id="calendar-new" class="calendar-container"></div>
+              <div id="selected-date-info" class="calendar__selected-info" style="display: none;">
+                <div class="calendar__selected-date" id="selected-date-text"></div>
+                <div class="calendar__selected-time">16:45 - 18:15</div>
+              </div>
+              <span class="form__hint">月曜日のみ選択可能です。カレンダーから日付をクリックしてください。</span>
               <span class="form__error" id="preferredDate-error"></span>
             </div>
 
@@ -352,18 +356,22 @@
             </div>
 
             <div class="form__group">
-              <label for="modifyNewDate" class="form__label">
+              <label class="form__label">
                 新しい見学希望日
                 <span class="form__required">必須</span>
               </label>
               <input
-                type="date"
+                type="hidden"
                 id="modifyNewDate"
                 name="newDate"
-                class="form__input"
                 required
               >
-              <span class="form__hint">月曜日のみ選択可能です。</span>
+              <div id="calendar-modify" class="calendar-container"></div>
+              <div id="modify-selected-date-info" class="calendar__selected-info" style="display: none;">
+                <div class="calendar__selected-date" id="modify-selected-date-text"></div>
+                <div class="calendar__selected-time">16:45 - 18:15</div>
+              </div>
+              <span class="form__hint">月曜日のみ選択可能です。カレンダーから日付をクリックしてください。</span>
               <span class="form__error" id="modifyNewDate-error"></span>
             </div>
 
@@ -447,6 +455,7 @@
   <!-- Scripts -->
   <script src="js/config.js"></script>
   <script src="js/form.js"></script>
+  <script src="js/calendar.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
