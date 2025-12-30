@@ -2322,3 +2322,305 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 10px 30px rgba(255, 51, 102, 0.4);
   color: #fff;
 }
+
+/* =============================================
+   診断ツール レスポンシブ対応強化
+   ============================================= */
+
+/* ----- プログレスバーの視認性向上 ----- */
+.diagnostic__progress {
+  height: 6px;
+}
+
+@media (min-width: 768px) {
+  .diagnostic__progress {
+    height: 8px;
+  }
+}
+
+/* ----- スコアバーの視認性向上 ----- */
+.diagnostic__score-bar {
+  height: 10px;
+}
+
+@media (min-width: 768px) {
+  .diagnostic__score-bar {
+    height: 12px;
+  }
+}
+
+/* ----- フォントサイズ改善（14px以上に統一） ----- */
+.diagnostic__notice p {
+  font-size: 1rem;
+}
+
+.diagnostic__score-value {
+  font-size: 0.875rem;
+}
+
+.diagnostic__advice-label {
+  font-size: 0.875rem;
+}
+
+.diagnostic__advice-examples li {
+  font-size: 0.9375rem;
+}
+
+.diagnostic__professional-note {
+  font-size: 0.9375rem;
+}
+
+.diagnostic__match li {
+  font-size: 0.9375rem;
+}
+
+/* ----- タッチフィードバック追加 ----- */
+.diagnostic__answer:active,
+.diagnostic__option:active,
+.btn--diagnostic:active,
+.btn--diagnostic-secondary:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+/* iOS Safari でのタップハイライト無効化 */
+.diagnostic__answer,
+.diagnostic__option,
+.btn--diagnostic,
+.btn--diagnostic-secondary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* フォーカス状態の可視化（アクセシビリティ） */
+.diagnostic__answer:focus-visible,
+.diagnostic__option:focus-visible,
+.btn--diagnostic:focus-visible,
+.btn--diagnostic-secondary:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ----- ボタンの最小タッチ領域保証 ----- */
+.btn--diagnostic,
+.btn--diagnostic-secondary {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* ----- モバイル向け改善（〜480px） ----- */
+@media (max-width: 480px) {
+  /* 回答ボタンを縦並びに変更 */
+  .diagnostic__answer-options {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .diagnostic__answer {
+    min-width: 100%;
+    min-height: 48px;
+    font-size: 0.9375rem;
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  /* ナビゲーションボタンの改善 */
+  .diagnostic__nav {
+    flex-direction: column-reverse;
+    gap: var(--space-sm);
+  }
+
+  .diagnostic__nav .btn--diagnostic,
+  .diagnostic__nav .btn--diagnostic-secondary {
+    max-width: 100%;
+    min-height: 48px;
+    width: 100%;
+  }
+
+  /* 基本情報の選択ボタン改善 */
+  .diagnostic__options--age {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnostic__option {
+    min-height: 56px;
+    padding: var(--space-md);
+  }
+
+  /* 質問カードの改善 */
+  .diagnostic__question {
+    padding: var(--space-sm);
+  }
+
+  .diagnostic__question-text {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+
+  /* 結果セクションの改善 */
+  .diagnostic__section {
+    padding: var(--space-md);
+  }
+
+  .diagnostic__section-title {
+    font-size: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* チャートのモバイル対応 */
+  .diagnostic__chart-container {
+    padding: var(--space-sm);
+  }
+
+  #diagnostic-chart {
+    max-width: 260px;
+  }
+
+  /* タイトルサイズ調整 */
+  .diagnostic__title {
+    font-size: 1.25rem;
+  }
+
+  /* アイコンサイズ調整 */
+  .diagnostic__icon {
+    font-size: 3rem;
+  }
+}
+
+/* ----- タブレット向け調整（481px〜767px） ----- */
+@media (min-width: 481px) and (max-width: 767px) {
+  .diagnostic__answer-options {
+    gap: var(--space-sm);
+  }
+
+  .diagnostic__answer {
+    min-width: calc(33.33% - var(--space-sm));
+    min-height: 48px;
+    font-size: 0.9375rem;
+  }
+
+  /* 5つの選択肢の場合、3+2の配置 */
+  .diagnostic__answer:nth-child(4),
+  .diagnostic__answer:nth-child(5) {
+    min-width: calc(50% - var(--space-xs));
+  }
+
+  #diagnostic-chart {
+    max-width: 320px;
+  }
+}
+
+/* ----- デスクトップ向け調整（768px〜） ----- */
+@media (min-width: 768px) {
+  #diagnostic-chart {
+    max-width: 360px;
+  }
+
+  .diagnostic__chart-container {
+    padding: var(--space-lg);
+  }
+}
+
+/* ----- フルスクリーンモード用スタイル ----- */
+.diagnostic--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: var(--bg-color);
+  overflow-y: auto;
+  padding: var(--space-md);
+}
+
+.diagnostic--fullscreen .diagnostic {
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.diagnostic--fullscreen .diagnostic__content {
+  padding: var(--space-xl);
+}
+
+@media (max-width: 480px) {
+  .diagnostic--fullscreen {
+    padding: var(--space-sm);
+  }
+
+  .diagnostic--fullscreen .diagnostic__content {
+    padding: var(--space-md);
+  }
+}
+
+/* フルスクリーン閉じるボタン */
+.diagnostic__fullscreen-close {
+  position: fixed;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 44px;
+  height: 44px;
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid var(--primary-color);
+  border-radius: 50%;
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.diagnostic__fullscreen-close:hover {
+  background: var(--primary-color);
+  color: var(--bg-color);
+  box-shadow: var(--glow-primary);
+}
+
+/* ----- コントロールボタン（フルスクリーン・別タブ） ----- */
+.diagnostic__controls {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.diagnostic__control-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.2), rgba(0, 255, 0, 0.1));
+  border: 1px solid rgba(0, 255, 204, 0.4);
+  border-radius: var(--border-radius);
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.diagnostic__control-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.3), rgba(0, 255, 0, 0.2));
+  border-color: var(--primary-color);
+  box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+  transform: translateY(-2px);
+}
+
+.diagnostic__control-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 480px) {
+  .diagnostic__controls {
+    flex-direction: column;
+  }
+
+  .diagnostic__control-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

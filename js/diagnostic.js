@@ -11,13 +11,15 @@
  */
 
 class DiagnosticTool {
-  constructor(containerId) {
+  constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
     if (!this.container) return;
 
     this.currentStep = 0;
     this.answers = {};
     this.basicInfo = {};
+    this.isFullscreen = options.fullscreen || false;
+    this.isStandalone = options.standalone || false;
 
     // 5つの評価領域（SDQ参考）
     this.domains = {
@@ -100,20 +102,63 @@ class DiagnosticTool {
   init() {
     this.render();
     this.bindEvents();
+    this.bindResizeHandler();
+  }
+
+  bindResizeHandler() {
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (this.steps[this.currentStep].id === 'result') {
+          this.drawChart();
+        }
+      }, 250);
+    });
   }
 
   render() {
+    const fullscreenClass = this.isFullscreen ? 'diagnostic--fullscreen' : '';
+    const closeButton = this.isFullscreen ? `
+      <button type="button" class="diagnostic__fullscreen-close" data-action="close-fullscreen" aria-label="閉じる">×</button>
+    ` : '';
+
     this.container.innerHTML = `
-      <div class="diagnostic">
-        <div class="diagnostic__progress">
-          <div class="diagnostic__progress-bar" style="width: 0%"></div>
+      <div class="${fullscreenClass}">
+        ${closeButton}
+        <div class="diagnostic">
+          <div class="diagnostic__progress">
+            <div class="diagnostic__progress-bar" style="width: 0%"></div>
+          </div>
+          <div class="diagnostic__content">
+            ${this.renderStep()}
+          </div>
         </div>
-        <div class="diagnostic__content">
-          ${this.renderStep()}
-        </div>
+        ${!this.isStandalone && !this.isFullscreen ? this.renderControls() : ''}
       </div>
     `;
     this.updateProgress();
+  }
+
+  renderControls() {
+    return `
+      <div class="diagnostic__controls">
+        <button type="button" class="diagnostic__control-btn" data-action="fullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          フルスクリーンで開く
+        </button>
+        <button type="button" class="diagnostic__control-btn" data-action="new-tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          別タブで開く
+        </button>
+      </div>
+    `;
   }
 
   renderStep() {
@@ -309,7 +354,7 @@ class DiagnosticTool {
         </div>
 
         <div class="diagnostic__chart-container">
-          <canvas id="diagnostic-chart" width="300" height="300"></canvas>
+          <canvas id="diagnostic-chart"></canvas>
         </div>
 
         <div class="diagnostic__scores">
@@ -814,6 +859,15 @@ class DiagnosticTool {
         this.answers = {};
         this.basicInfo = {};
         break;
+      case 'fullscreen':
+        this.openFullscreen();
+        return;
+      case 'close-fullscreen':
+        this.closeFullscreen();
+        return;
+      case 'new-tab':
+        this.openInNewTab();
+        return;
     }
 
     this.render();
@@ -823,6 +877,119 @@ class DiagnosticTool {
     if (this.steps[this.currentStep].id === 'result') {
       setTimeout(() => this.drawChart(), 100);
     }
+  }
+
+  openFullscreen() {
+    // フルスクリーン用のコンテナを作成
+    const fullscreenContainer = document.createElement('div');
+    fullscreenContainer.id = 'diagnostic-fullscreen-container';
+    document.body.appendChild(fullscreenContainer);
+
+    // 現在の状態を保存
+    const savedState = {
+      currentStep: this.currentStep,
+      answers: { ...this.answers },
+      basicInfo: { ...this.basicInfo }
+    };
+
+    // フルスクリーンモードで新しいインスタンスを作成
+    const fullscreenTool = new DiagnosticTool('diagnostic-fullscreen-container', {
+      fullscreen: true,
+      standalone: true
+    });
+
+    // 状態を復元
+    fullscreenTool.currentStep = savedState.currentStep;
+    fullscreenTool.answers = savedState.answers;
+    fullscreenTool.basicInfo = savedState.basicInfo;
+    fullscreenTool.render();
+
+    // スクロールを無効化
+    document.body.style.overflow = 'hidden';
+
+    // 結果ページの場合はチャートを描画
+    if (fullscreenTool.steps[fullscreenTool.currentStep].id === 'result') {
+      setTimeout(() => fullscreenTool.drawChart(), 100);
+    }
+  }
+
+  closeFullscreen() {
+    const fullscreenContainer = document.getElementById('diagnostic-fullscreen-container');
+    if (fullscreenContainer) {
+      fullscreenContainer.remove();
+      document.body.style.overflow = '';
+    }
+  }
+
+  openInNewTab() {
+    // 別タブ用のHTMLを生成
+    const htmlContent = this.generateStandaloneHTML();
+
+    // Blobを作成してURLを生成
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    // 新しいタブで開く
+    window.open(url, '_blank');
+  }
+
+  generateStandaloneHTML() {
+    // 現在のCSSを取得
+    const styleSheets = Array.from(document.styleSheets);
+    let cssText = '';
+
+    styleSheets.forEach(sheet => {
+      try {
+        if (sheet.href && sheet.href.includes('style.css')) {
+          Array.from(sheet.cssRules || []).forEach(rule => {
+            cssText += rule.cssText + '\n';
+          });
+        }
+      } catch (e) {
+        // Cross-origin stylesheets will throw
+      }
+    });
+
+    // フォールバック: インラインでCSSを読み込む
+    const cssLink = document.querySelector('link[href*="style.css"]');
+    const cssHref = cssLink ? cssLink.href : 'css/style.css';
+
+    return `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お子さま理解サポートツール | if(塾)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="${cssHref}">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg);
+    }
+    #diagnostic-standalone {
+      width: 100%;
+      max-width: 900px;
+    }
+  </style>
+</head>
+<body>
+  <div id="diagnostic-standalone"></div>
+  <script>
+    ${DiagnosticTool.toString()}
+    document.addEventListener('DOMContentLoaded', () => {
+      new DiagnosticTool('diagnostic-standalone', { standalone: true });
+    });
+  </script>
+</body>
+</html>
+    `;
   }
 
   handleBasicInfoSelect(target) {
@@ -903,12 +1070,26 @@ class DiagnosticTool {
     const ctx = canvas.getContext('2d');
     const scores = this.calculateScores();
     const domains = Object.keys(this.domains);
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+
+    // レスポンシブサイズの計算
+    const container = canvas.parentElement;
+    const containerWidth = container ? container.clientWidth : 300;
+    const size = Math.min(containerWidth - 40, 360);
+
+    // 高DPIディスプレイ対応
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    ctx.scale(dpr, dpr);
+
+    const centerX = size / 2;
+    const centerY = size / 2;
     const radius = Math.min(centerX, centerY) - 40;
 
     // キャンバスをクリア
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, size, size);
 
     // 背景のグリッドを描画
     ctx.strokeStyle = 'rgba(0, 255, 204, 0.2)';
