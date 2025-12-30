@@ -191,8 +191,17 @@
         <!-- タブナビゲーション -->
         <div class="tabs">
           <button class="tab-btn tab-btn--active" data-tab="tab-new">新規申し込み</button>
-          <button class="tab-btn" data-tab="tab-modify">予約変更</button>
-          <button class="tab-btn" data-tab="tab-cancel">キャンセル</button>
+          <button class="tab-btn tab-btn--reserved" data-tab="tab-modify" style="display: none;">予約変更</button>
+          <button class="tab-btn tab-btn--reserved" data-tab="tab-cancel" style="display: none;">キャンセル</button>
+        </div>
+
+        <!-- 予約済みの場合のみ表示されるメッセージ -->
+        <div id="reservation-info" class="reservation-info" style="display: none;">
+          <div class="reservation-info__content">
+            <span class="reservation-info__label">予約ID:</span>
+            <span class="reservation-info__id" id="saved-reservation-id"></span>
+            <button type="button" class="reservation-info__clear" id="clear-reservation-btn" title="予約情報をクリア">×</button>
+          </div>
         </div>
 
         <!-- 新規申し込みタブ -->

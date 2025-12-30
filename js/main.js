@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFooterYear();
   initTabs();
   initParticles();
+  initReservationTabs();
 });
 
 /**
@@ -218,11 +219,24 @@ async function handleVisitFormSubmit(e) {
     if (result.success) {
       let message = 'お申し込みありがとうございます。<br>担当者より追ってご連絡いたします。';
       if (result.reservationId) {
-        message += `<br><br><strong>予約ID: ${result.reservationId}</strong><br><small>変更・キャンセル時に必要です。大切に保管してください。</small>`;
+        message += `<br><br><strong>予約ID: ${result.reservationId}</strong><br><small>このブラウザに予約情報が保存されました。変更・キャンセルタブが利用できます。</small>`;
+
+        // 予約情報をローカルストレージに保存
+        ReservationManager.saveReservation(result.reservationId, formData.email);
+
+        // タブ表示を更新
+        updateReservationTabsVisibility();
       }
       FormHandler.showResult(resultEl, true, message);
       form.reset();
       FormHandler.displayErrors({});
+
+      // カレンダーの選択をクリア
+      if (window.calendarNew) {
+        window.calendarNew.clearSelection();
+      }
+      const selectedDateInfo = document.getElementById('selected-date-info');
+      if (selectedDateInfo) selectedDateInfo.style.display = 'none';
     } else {
       FormHandler.showResult(resultEl, false, result.message);
     }
@@ -310,6 +324,9 @@ async function handleCancelFormSubmit(e) {
 
     if (result.success) {
       form.reset();
+      // キャンセル成功後、ローカルストレージから予約情報を削除
+      ReservationManager.clearReservation();
+      updateReservationTabsVisibility();
     }
   } catch (error) {
     console.error('キャンセルエラー:', error);
@@ -318,3 +335,122 @@ async function handleCancelFormSubmit(e) {
     FormHandler.setButtonLoading(submitBtn, false);
   }
 }
+
+// =============================================
+// 予約ID管理（ローカルストレージ）
+// =============================================
+
+const STORAGE_KEY = 'ifjuku_reservation';
+
+/**
+ * 予約情報管理クラス
+ */
+const ReservationManager = {
+  /**
+   * 予約情報を保存
+   */
+  saveReservation(reservationId, email) {
+    const data = {
+      reservationId,
+      email,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  },
+
+  /**
+   * 予約情報を取得
+   */
+  getReservation() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * 予約情報をクリア
+   */
+  clearReservation() {
+    localStorage.removeItem(STORAGE_KEY);
+  },
+
+  /**
+   * 予約があるか確認
+   */
+  hasReservation() {
+    return this.getReservation() !== null;
+  }
+};
+
+/**
+ * 予約タブの表示/非表示を更新
+ */
+function updateReservationTabsVisibility() {
+  const reservedTabs = document.querySelectorAll('.tab-btn--reserved');
+  const reservationInfo = document.getElementById('reservation-info');
+  const savedIdEl = document.getElementById('saved-reservation-id');
+  const reservation = ReservationManager.getReservation();
+
+  if (reservation) {
+    // 予約がある場合、変更・キャンセルタブを表示
+    reservedTabs.forEach(tab => {
+      tab.style.display = '';
+    });
+    if (reservationInfo) {
+      reservationInfo.style.display = 'block';
+    }
+    if (savedIdEl) {
+      savedIdEl.textContent = reservation.reservationId;
+    }
+
+    // 変更・キャンセルフォームに予約情報を自動入力
+    const modifyReservationIdEl = document.getElementById('modifyReservationId');
+    const modifyEmailEl = document.getElementById('modifyEmail');
+    const cancelReservationIdEl = document.getElementById('cancelReservationId');
+    const cancelEmailEl = document.getElementById('cancelEmail');
+
+    if (modifyReservationIdEl) modifyReservationIdEl.value = reservation.reservationId;
+    if (modifyEmailEl) modifyEmailEl.value = reservation.email;
+    if (cancelReservationIdEl) cancelReservationIdEl.value = reservation.reservationId;
+    if (cancelEmailEl) cancelEmailEl.value = reservation.email;
+  } else {
+    // 予約がない場合、変更・キャンセルタブを非表示
+    reservedTabs.forEach(tab => {
+      tab.style.display = 'none';
+    });
+    if (reservationInfo) {
+      reservationInfo.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * 予約タブの初期化
+ */
+function initReservationTabs() {
+  // 初期表示の更新
+  updateReservationTabsVisibility();
+
+  // 予約情報クリアボタン
+  const clearBtn = document.getElementById('clear-reservation-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (confirm('保存されている予約情報をクリアしますか？\n（予約自体はキャンセルされません）')) {
+        ReservationManager.clearReservation();
+        updateReservationTabsVisibility();
+
+        // 新規申し込みタブに戻る
+        const newTabBtn = document.querySelector('[data-tab="tab-new"]');
+        if (newTabBtn) newTabBtn.click();
+      }
+    });
+  }
+}
+
+// グローバルに公開
+window.ReservationManager = ReservationManager;
+window.updateReservationTabsVisibility = updateReservationTabsVisibility;

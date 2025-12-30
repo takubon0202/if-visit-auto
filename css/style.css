@@ -1363,3 +1363,73 @@ h1, h2, h3, h4, h5, h6 {
 .tab-btn:hover {
   color: var(--primary-color);
 }
+
+/* ----- Reservation Info (予約情報表示) ----- */
+.reservation-info {
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.1), rgba(255, 0, 255, 0.05));
+  border: 1px solid rgba(0, 255, 204, 0.4);
+  border-radius: var(--border-radius);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.reservation-info__content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.reservation-info__label {
+  color: #c0c0c0;
+  font-size: 0.9rem;
+}
+
+.reservation-info__id {
+  color: var(--primary-color);
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 1rem;
+  text-shadow: var(--glow-text);
+}
+
+.reservation-info__clear {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid rgba(255, 51, 102, 0.5);
+  color: var(--color-error);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reservation-info__clear:hover {
+  background: rgba(255, 51, 102, 0.2);
+  border-color: var(--color-error);
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.4);
+}
+
+/* Reserved tabs animation */
+.tab-btn--reserved {
+  position: relative;
+}
+
+.tab-btn--reserved::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  box-shadow: 0 0 5px var(--primary-color);
+}
