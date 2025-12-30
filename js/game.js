@@ -19,6 +19,15 @@ class IFRunGame {
     this.distance = 0;
     this.goalDistance = 3000;
 
+    // スピード設定
+    this.speedSettings = {
+      slow: { baseSpeed: 2.5, label: 'ゆっくり', color: '#00CC00', speedIncrease: 0.2 },
+      normal: { baseSpeed: 4, label: 'ふつう', color: '#FFAA00', speedIncrease: 0.4 },
+      fast: { baseSpeed: 6, label: 'はやい', color: '#FF4444', speedIncrease: 0.6 }
+    };
+    this.selectedSpeed = 'slow'; // デフォルトはゆっくり
+    this.speedButtonRects = []; // クリック判定用
+
     // プレイヤー
     this.player = {
       x: 100,
@@ -42,9 +51,9 @@ class IFRunGame {
     this.items = [];
     this.particles = [];
 
-    // スクロール速度
-    this.scrollSpeed = 5;
-    this.baseScrollSpeed = 5;
+    // スクロール速度（デフォルトはゆっくり）
+    this.scrollSpeed = this.speedSettings.slow.baseSpeed;
+    this.baseScrollSpeed = this.speedSettings.slow.baseSpeed;
 
     // マリオ風背景要素
     this.clouds = [];
@@ -141,10 +150,34 @@ class IFRunGame {
     // キーボード
     document.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
+
+      if (this.gameState === 'start') {
+        // スピード選択（1, 2, 3キー）
+        if (e.code === 'Digit1' || e.code === 'Numpad1') {
+          this.selectedSpeed = 'slow';
+          this.baseScrollSpeed = this.speedSettings.slow.baseSpeed;
+          this.scrollSpeed = this.baseScrollSpeed;
+          this.startGame();
+        } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
+          this.selectedSpeed = 'normal';
+          this.baseScrollSpeed = this.speedSettings.normal.baseSpeed;
+          this.scrollSpeed = this.baseScrollSpeed;
+          this.startGame();
+        } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
+          this.selectedSpeed = 'fast';
+          this.baseScrollSpeed = this.speedSettings.fast.baseSpeed;
+          this.scrollSpeed = this.baseScrollSpeed;
+          this.startGame();
+        } else if (e.code === 'Space' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          // デフォルト（ゆっくり）でスタート
+          this.baseScrollSpeed = this.speedSettings[this.selectedSpeed].baseSpeed;
+          this.scrollSpeed = this.baseScrollSpeed;
+          this.startGame();
+        }
+      } else if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
-        if (this.gameState === 'start') this.startGame();
-        else if (this.gameState === 'gameover' || this.gameState === 'clear') this.resetGame();
+        if (this.gameState === 'gameover' || this.gameState === 'clear') this.resetGame();
         else if (this.gameState === 'playing') this.jump();
       }
     });
@@ -156,25 +189,38 @@ class IFRunGame {
     // クリック/タッチ
     this.canvas.addEventListener('click', (e) => {
       e.preventDefault();
-      if (this.gameState === 'start') {
-        this.startGame();
-      } else if (this.gameState === 'gameover' || this.gameState === 'clear') {
-        this.resetGame();
-      } else if (this.gameState === 'playing') {
-        this.jump();
-      }
+      this.handleClick(e);
     });
 
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      if (this.gameState === 'start') {
-        this.startGame();
-      } else if (this.gameState === 'gameover' || this.gameState === 'clear') {
-        this.resetGame();
-      } else if (this.gameState === 'playing') {
-        this.jump();
-      }
+      this.handleClick(e.touches[0]);
     });
+  }
+
+  // クリック/タッチ処理
+  handleClick(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+
+    if (this.gameState === 'start') {
+      // スピードボタンのクリック判定
+      for (const btn of this.speedButtonRects) {
+        if (x >= btn.x && x <= btn.x + btn.width &&
+            y >= btn.y && y <= btn.y + btn.height) {
+          this.selectedSpeed = btn.speed;
+          this.baseScrollSpeed = this.speedSettings[btn.speed].baseSpeed;
+          this.scrollSpeed = this.baseScrollSpeed;
+          this.startGame();
+          return;
+        }
+      }
+    } else if (this.gameState === 'gameover' || this.gameState === 'clear') {
+      this.resetGame();
+    } else if (this.gameState === 'playing') {
+      this.jump();
+    }
   }
 
   // ゲーム開始
@@ -286,8 +332,9 @@ class IFRunGame {
       return;
     }
 
-    // 速度を徐々に上げる
-    this.scrollSpeed = this.baseScrollSpeed + (this.distance / 1000) * 0.5;
+    // 速度を徐々に上げる（選択したスピードに応じた増加率）
+    const speedIncrease = this.speedSettings[this.selectedSpeed].speedIncrease;
+    this.scrollSpeed = this.baseScrollSpeed + (this.distance / 1000) * speedIncrease;
 
     // プレイヤー物理
     this.player.velocityY += this.gravity;
@@ -825,6 +872,7 @@ class IFRunGame {
     const titleSize = Math.max(24, Math.floor(40 * this.scale));
     const subTitleSize = Math.max(16, Math.floor(24 * this.scale));
     const textSize = Math.max(12, Math.floor(16 * this.scale));
+    const btnTextSize = Math.max(11, Math.floor(14 * this.scale));
 
     // タイトル
     this.ctx.fillStyle = '#FFD700';
@@ -832,25 +880,69 @@ class IFRunGame {
     this.ctx.textAlign = 'center';
     this.ctx.shadowColor = '#FF6600';
     this.ctx.shadowBlur = 10;
-    this.ctx.fillText('if(Run)', this.width / 2, this.height / 2 - 60 * this.scale);
+    this.ctx.fillText('if(Run)', this.width / 2, this.height / 2 - 80 * this.scale);
 
     // サブタイトル
     this.ctx.fillStyle = '#FFFFFF';
     this.ctx.font = `${subTitleSize}px "Noto Sans JP", sans-serif`;
     this.ctx.shadowBlur = 0;
-    this.ctx.fillText('~塾長の挑戦~', this.width / 2, this.height / 2 - 20 * this.scale);
+    this.ctx.fillText('~塾長の挑戦~', this.width / 2, this.height / 2 - 45 * this.scale);
 
     // 操作説明
     this.ctx.fillStyle = '#90EE90';
     this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
-    this.ctx.fillText('タップ or スペースキーでジャンプ!', this.width / 2, this.height / 2 + 30 * this.scale);
+    this.ctx.fillText('タップ or スペースキーでジャンプ!', this.width / 2, this.height / 2 - 5 * this.scale);
 
-    // スタートボタン風
-    this.ctx.fillStyle = '#FF6600';
-    this.ctx.fillRect(this.width / 2 - 80, this.height / 2 + 50 * this.scale, 160, 40);
-    this.ctx.fillStyle = '#FFF';
-    this.ctx.font = `bold ${textSize}px monospace`;
-    this.ctx.fillText('START', this.width / 2, this.height / 2 + 75 * this.scale);
+    // スピード選択ラベル
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText('スピードを選んでスタート', this.width / 2, this.height / 2 + 30 * this.scale);
+
+    // スピードボタン
+    const buttonWidth = Math.max(90, 110 * this.scale);
+    const buttonHeight = Math.max(40, 50 * this.scale);
+    const buttonGap = Math.max(10, 15 * this.scale);
+    const totalWidth = buttonWidth * 3 + buttonGap * 2;
+    const startX = this.width / 2 - totalWidth / 2;
+    const buttonY = this.height / 2 + 50 * this.scale;
+
+    this.speedButtonRects = []; // ボタン位置をリセット
+
+    const speeds = ['slow', 'normal', 'fast'];
+    speeds.forEach((speed, index) => {
+      const setting = this.speedSettings[speed];
+      const btnX = startX + index * (buttonWidth + buttonGap);
+
+      // ボタン位置を保存
+      this.speedButtonRects.push({
+        x: btnX,
+        y: buttonY,
+        width: buttonWidth,
+        height: buttonHeight,
+        speed: speed
+      });
+
+      // ボタン背景
+      this.ctx.fillStyle = setting.color;
+      this.ctx.fillRect(btnX, buttonY, buttonWidth, buttonHeight);
+
+      // ボタン枠（選択中は強調）
+      if (this.selectedSpeed === speed) {
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeRect(btnX, buttonY, buttonWidth, buttonHeight);
+      }
+
+      // ボタンテキスト
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.font = `bold ${btnTextSize}px "Noto Sans JP", sans-serif`;
+      this.ctx.fillText(setting.label, btnX + buttonWidth / 2, buttonY + buttonHeight / 2 + 5);
+    });
+
+    // 注意書き
+    this.ctx.fillStyle = '#888888';
+    this.ctx.font = `${Math.floor(textSize * 0.8)}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText('※「ゆっくり」がおすすめです', this.width / 2, this.height / 2 + 115 * this.scale);
   }
 
   // ゲームオーバー画面
