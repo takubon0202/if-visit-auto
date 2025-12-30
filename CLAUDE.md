@@ -15,6 +15,7 @@
 9. **README Update Agent** - README自動更新
 10. **Game Agent** - if(Run)ゲーム開発（子ども向けマリオ風）
 11. **Responsive Agent** - レスポンシブ対応・マルチデバイス最適化
+12. **Play Agent** - ゲームプレイテスト・評価（96%以上で合格）
 
 ## スラッシュコマンド
 
