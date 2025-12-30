@@ -286,30 +286,33 @@
             </div>
 
             <div class="form__group">
-              <label for="grade" class="form__label">
-                学年
+              <label for="visitor-type" class="form__label">
+                ご職業・属性
                 <span class="form__required">必須</span>
               </label>
-              <select id="grade" name="grade" class="form__input form__select" required aria-required="true" aria-describedby="grade-error">
+              <select id="visitor-type" name="visitorType" class="form__input form__select" required aria-required="true" aria-describedby="visitor-type-error">
                 <option value="">選択してください</option>
-                <optgroup label="小学生">
-                  <option value="小学4年生">小学4年生</option>
-                  <option value="小学5年生">小学5年生</option>
-                  <option value="小学6年生">小学6年生</option>
+                <optgroup label="保護者">
+                  <option value="保護者（入塾検討）">保護者（入塾検討）</option>
+                  <option value="保護者（情報収集）">保護者（情報収集）</option>
                 </optgroup>
-                <optgroup label="中学生">
-                  <option value="中学1年生">中学1年生</option>
-                  <option value="中学2年生">中学2年生</option>
-                  <option value="中学3年生">中学3年生</option>
+                <optgroup label="教育関係">
+                  <option value="学校教員">学校教員</option>
+                  <option value="塾・教育事業者">塾・教育事業者</option>
+                  <option value="教育委員会">教育委員会</option>
                 </optgroup>
-                <optgroup label="高校生">
-                  <option value="高校1年生">高校1年生</option>
-                  <option value="高校2年生">高校2年生</option>
-                  <option value="高校3年生">高校3年生</option>
+                <optgroup label="行政・自治体">
+                  <option value="自治体職員">自治体職員</option>
+                  <option value="議員・政策関係者">議員・政策関係者</option>
                 </optgroup>
-                <option value="その他">その他</option>
+                <optgroup label="その他">
+                  <option value="学生（大学生・専門学生）">学生（大学生・専門学生）</option>
+                  <option value="社会人（一般）">社会人（一般）</option>
+                  <option value="メディア・報道関係">メディア・報道関係</option>
+                  <option value="その他">その他</option>
+                </optgroup>
               </select>
-              <span class="form__error" id="grade-error"></span>
+              <span class="form__error" id="visitor-type-error"></span>
             </div>
 
             <div class="form__group">

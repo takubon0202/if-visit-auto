@@ -48,8 +48,8 @@ function validateForm(formData) {
     errors.email = '有効なメールアドレスを入力してください';
   }
 
-  if (!formData.grade) {
-    errors.grade = '学年を選択してください';
+  if (!formData.visitorType) {
+    errors['visitor-type'] = 'ご職業・属性を選択してください';
   }
 
   if (formData.preferredDate) {
@@ -222,7 +222,7 @@ async function sendToDiscord(formData) {
     fields: [
       { name: '👤 お名前', value: sanitize(formData.name) || '未入力', inline: true },
       { name: '📧 メール', value: sanitize(formData.email) || '未入力', inline: true },
-      { name: '🎓 学年', value: sanitize(formData.grade) || '未選択', inline: true },
+      { name: '💼 ご職業・属性', value: sanitize(formData.visitorType) || '未選択', inline: true },
       {
         name: '📅 見学希望日',
         value: formData.preferredDate
