@@ -1,17 +1,17 @@
 // =============================================
-// if(塾) ランナーゲーム - マリオ風横スクロール
+// if(Run) ~塾長の挑戦~ - マリオ風横スクロールゲーム
 // =============================================
 
-class IFJukuGame {
-  constructor(canvasId) {
+class IFRunGame {
+  constructor(canvasId, options = {}) {
     this.canvas = document.getElementById(canvasId);
     if (!this.canvas) return;
 
     this.ctx = this.canvas.getContext('2d');
-    this.width = 800;
-    this.height = 400;
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    this.isFullscreen = options.fullscreen || false;
+
+    // サイズ設定（レスポンシブ）
+    this.setupSize();
 
     // ゲーム状態
     this.gameState = 'start'; // start, playing, gameover, clear
@@ -22,7 +22,7 @@ class IFJukuGame {
     // プレイヤー
     this.player = {
       x: 100,
-      y: this.height - 100,
+      y: this.groundY - 56,
       width: 40,
       height: 56,
       velocityY: 0,
@@ -36,7 +36,6 @@ class IFJukuGame {
     // 物理
     this.gravity = 0.8;
     this.jumpForce = -15;
-    this.groundY = this.height - 60;
 
     // 障害物とアイテム
     this.obstacles = [];
@@ -47,18 +46,18 @@ class IFJukuGame {
     this.scrollSpeed = 5;
     this.baseScrollSpeed = 5;
 
-    // 背景要素
-    this.bgElements = [];
-    this.initBackground();
+    // マリオ風背景要素
+    this.clouds = [];
+    this.hills = [];
+    this.bushes = [];
+    this.initMarioBackground();
 
     // 入力
     this.keys = {};
-    this.touchLeft = false;
-    this.touchRight = false;
-    this.touchJump = false;
-
-    // イベントリスナー
     this.setupEventListeners();
+
+    // リサイズ対応
+    window.addEventListener('resize', () => this.handleResize());
 
     // ゲームループ開始
     this.lastTime = 0;
@@ -66,15 +65,73 @@ class IFJukuGame {
     requestAnimationFrame(this.gameLoop);
   }
 
-  // 背景初期化
-  initBackground() {
-    // サイバーパンク風の背景ビル
-    for (let i = 0; i < 10; i++) {
-      this.bgElements.push({
-        x: i * 150,
-        width: 80 + Math.random() * 60,
-        height: 100 + Math.random() * 150,
-        speed: 1
+  // サイズ設定
+  setupSize() {
+    const isMobile = window.innerWidth <= 480;
+    const isTablet = window.innerWidth <= 768;
+
+    if (this.isFullscreen) {
+      this.width = window.innerWidth;
+      this.height = window.innerHeight;
+    } else if (isMobile) {
+      this.width = Math.min(window.innerWidth - 32, 480);
+      this.height = Math.floor(this.width * 0.6);
+    } else if (isTablet) {
+      this.width = Math.min(window.innerWidth - 64, 720);
+      this.height = Math.floor(this.width * 0.55);
+    } else {
+      this.width = 960;
+      this.height = 540;
+    }
+
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
+    this.groundY = this.height - 80;
+
+    // スケール計算
+    this.scale = this.width / 960;
+  }
+
+  // リサイズハンドラ
+  handleResize() {
+    this.setupSize();
+    if (this.player) {
+      this.player.y = this.groundY - this.player.height;
+    }
+  }
+
+  // マリオ風背景初期化
+  initMarioBackground() {
+    // 雲
+    this.clouds = [];
+    for (let i = 0; i < 6; i++) {
+      this.clouds.push({
+        x: i * 200 + Math.random() * 100,
+        y: 40 + Math.random() * 60,
+        width: 80 + Math.random() * 40,
+        speed: 0.3
+      });
+    }
+
+    // 丘
+    this.hills = [];
+    for (let i = 0; i < 4; i++) {
+      this.hills.push({
+        x: i * 350,
+        width: 200 + Math.random() * 100,
+        height: 80 + Math.random() * 40,
+        speed: 0.8
+      });
+    }
+
+    // 草むら
+    this.bushes = [];
+    for (let i = 0; i < 8; i++) {
+      this.bushes.push({
+        x: i * 180 + Math.random() * 50,
+        width: 60 + Math.random() * 40,
+        height: 30 + Math.random() * 20,
+        speed: 1.5
       });
     }
   }
@@ -96,8 +153,9 @@ class IFJukuGame {
       this.keys[e.code] = false;
     });
 
-    // タッチ/クリック
+    // クリック/タッチ
     this.canvas.addEventListener('click', (e) => {
+      e.preventDefault();
       if (this.gameState === 'start') {
         this.startGame();
       } else if (this.gameState === 'gameover' || this.gameState === 'clear') {
@@ -107,14 +165,13 @@ class IFJukuGame {
       }
     });
 
-    // タッチ操作
     this.canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const touch = e.touches[0];
-      const rect = this.canvas.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-
-      if (this.gameState === 'playing') {
+      if (this.gameState === 'start') {
+        this.startGame();
+      } else if (this.gameState === 'gameover' || this.gameState === 'clear') {
+        this.resetGame();
+      } else if (this.gameState === 'playing') {
         this.jump();
       }
     });
@@ -159,14 +216,14 @@ class IFJukuGame {
         vx: (Math.random() - 0.5) * 4,
         vy: Math.random() * 2,
         life: 20,
-        color: '#00ffcc'
+        color: '#8B4513'
       });
     }
   }
 
   // 障害物生成
   spawnObstacle() {
-    const types = ['spike', 'bug', 'gap'];
+    const types = ['pipe', 'goomba', 'gap'];
     const type = types[Math.floor(Math.random() * types.length)];
 
     const obstacle = {
@@ -176,27 +233,27 @@ class IFJukuGame {
     };
 
     switch (type) {
-      case 'spike':
-        obstacle.y = this.groundY - 30;
-        obstacle.width = 30;
-        obstacle.height = 30;
+      case 'pipe':
+        obstacle.y = this.groundY - 50;
+        obstacle.width = 40;
+        obstacle.height = 50;
         break;
-      case 'bug':
-        obstacle.y = this.groundY - 25;
+      case 'goomba':
+        obstacle.y = this.groundY - 30;
         obstacle.width = 35;
-        obstacle.height = 25;
+        obstacle.height = 30;
         obstacle.frame = 0;
         break;
       case 'gap':
         obstacle.y = this.groundY;
-        obstacle.width = 60;
-        obstacle.height = 60;
+        obstacle.width = 70;
+        obstacle.height = 80;
         break;
     }
 
     this.obstacles.push(obstacle);
 
-    // アイテムも一緒に生成
+    // アイテム生成
     if (Math.random() > 0.3) {
       this.spawnItem(obstacle.x + 100);
     }
@@ -204,14 +261,13 @@ class IFJukuGame {
 
   // アイテム生成
   spawnItem(x) {
-    const types = ['coin', 'star'];
-    const type = Math.random() > 0.8 ? 'star' : 'coin';
+    const type = Math.random() > 0.85 ? 'star' : 'coin';
 
     this.items.push({
       x: x + Math.random() * 100,
-      y: this.groundY - 80 - Math.random() * 60,
-      width: 25,
-      height: 25,
+      y: this.groundY - 100 - Math.random() * 60,
+      width: 28,
+      height: 28,
       type: type,
       frame: 0
     });
@@ -260,24 +316,19 @@ class IFJukuGame {
     }
 
     // 障害物更新
-    this.obstacles.forEach((obs, index) => {
+    this.obstacles.forEach((obs) => {
       obs.x -= this.scrollSpeed;
 
-      if (obs.type === 'bug') {
-        obs.frame = (obs.frame + 0.2) % 2;
+      if (obs.type === 'goomba') {
+        obs.frame = (obs.frame + 0.15) % 2;
       }
 
       // 衝突判定
       if (this.checkCollision(this.player, obs) && !this.player.isInvincible) {
-        if (obs.type === 'gap') {
-          // 穴に落ちた
-          this.gameState = 'gameover';
-        } else {
-          this.gameState = 'gameover';
-        }
+        this.gameState = 'gameover';
       }
 
-      // スコア加算（通過時）
+      // スコア加算
       if (!obs.passed && obs.x + obs.width < this.player.x) {
         obs.passed = true;
         this.score += 50;
@@ -289,7 +340,7 @@ class IFJukuGame {
 
     // 新しい障害物生成
     if (this.obstacles.length === 0 ||
-        this.obstacles[this.obstacles.length - 1].x < this.width - 300) {
+        this.obstacles[this.obstacles.length - 1].x < this.width - 350) {
       this.spawnObstacle();
     }
 
@@ -305,18 +356,17 @@ class IFJukuGame {
           this.createCoinParticles(item.x, item.y);
         } else if (item.type === 'star') {
           this.player.isInvincible = true;
-          this.player.invincibleTimer = 180; // 3秒
-          this.score += 300;
+          this.player.invincibleTimer = 180;
+          this.score += 500;
         }
         this.items.splice(index, 1);
       }
     });
 
-    // 画面外のアイテムを削除
     this.items = this.items.filter(item => item.x > -50);
 
     // パーティクル更新
-    this.particles.forEach((p, index) => {
+    this.particles.forEach((p) => {
       p.x += p.vx;
       p.y += p.vy;
       p.life--;
@@ -324,11 +374,33 @@ class IFJukuGame {
     this.particles = this.particles.filter(p => p.life > 0);
 
     // 背景更新
-    this.bgElements.forEach(bg => {
-      bg.x -= bg.speed;
-      if (bg.x + bg.width < 0) {
-        bg.x = this.width;
-        bg.height = 100 + Math.random() * 150;
+    this.updateBackground();
+  }
+
+  // 背景更新
+  updateBackground() {
+    // 雲
+    this.clouds.forEach(cloud => {
+      cloud.x -= cloud.speed;
+      if (cloud.x + cloud.width < 0) {
+        cloud.x = this.width + 50;
+        cloud.y = 40 + Math.random() * 60;
+      }
+    });
+
+    // 丘
+    this.hills.forEach(hill => {
+      hill.x -= hill.speed;
+      if (hill.x + hill.width < 0) {
+        hill.x = this.width + 100;
+      }
+    });
+
+    // 草むら
+    this.bushes.forEach(bush => {
+      bush.x -= bush.speed;
+      if (bush.x + bush.width < 0) {
+        bush.x = this.width + 50;
       }
     });
   }
@@ -342,14 +414,14 @@ class IFJukuGame {
         vx: (Math.random() - 0.5) * 6,
         vy: (Math.random() - 0.5) * 6,
         life: 15,
-        color: '#ffff00'
+        color: '#FFD700'
       });
     }
   }
 
   // 衝突判定
   checkCollision(a, b) {
-    const padding = 5;
+    const padding = 8;
     return a.x + padding < b.x + b.width &&
            a.x + a.width - padding > b.x &&
            a.y + padding < b.y + b.height &&
@@ -358,15 +430,22 @@ class IFJukuGame {
 
   // 描画
   draw() {
-    // 背景クリア
-    this.ctx.fillStyle = '#0a0a0a';
+    // マリオ風の空（グラデーション）
+    const skyGradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
+    skyGradient.addColorStop(0, '#5C94FC');
+    skyGradient.addColorStop(0.7, '#87CEEB');
+    skyGradient.addColorStop(1, '#B0E0E6');
+    this.ctx.fillStyle = skyGradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // グリッド背景
-    this.drawGrid();
+    // 雲
+    this.drawClouds();
 
-    // 背景ビル
-    this.drawBackground();
+    // 丘
+    this.drawHills();
+
+    // 草むら
+    this.drawBushes();
 
     // 地面
     this.drawGround();
@@ -396,68 +475,101 @@ class IFJukuGame {
     }
   }
 
-  // グリッド背景
-  drawGrid() {
-    this.ctx.strokeStyle = 'rgba(0, 255, 204, 0.1)';
-    this.ctx.lineWidth = 1;
+  // 雲を描画
+  drawClouds() {
+    this.ctx.fillStyle = '#FFFFFF';
+    this.clouds.forEach(cloud => {
+      // 雲を丸で構成
+      const cx = cloud.x + cloud.width / 2;
+      const cy = cloud.y;
+      const r = cloud.width / 4;
 
-    for (let x = 0; x < this.width; x += 40) {
       this.ctx.beginPath();
-      this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, this.height);
-      this.ctx.stroke();
-    }
-
-    for (let y = 0; y < this.height; y += 40) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(0, y);
-      this.ctx.lineTo(this.width, y);
-      this.ctx.stroke();
-    }
-  }
-
-  // 背景ビル
-  drawBackground() {
-    this.bgElements.forEach(bg => {
-      const gradient = this.ctx.createLinearGradient(bg.x, this.height - bg.height, bg.x, this.height);
-      gradient.addColorStop(0, 'rgba(0, 255, 204, 0.2)');
-      gradient.addColorStop(1, 'rgba(0, 255, 204, 0.05)');
-
-      this.ctx.fillStyle = gradient;
-      this.ctx.fillRect(bg.x, this.groundY - bg.height, bg.width, bg.height);
-
-      // ビルのライト
-      this.ctx.fillStyle = 'rgba(0, 255, 204, 0.5)';
-      for (let y = this.groundY - bg.height + 20; y < this.groundY - 20; y += 30) {
-        for (let x = bg.x + 10; x < bg.x + bg.width - 10; x += 20) {
-          if (Math.random() > 0.5) {
-            this.ctx.fillRect(x, y, 8, 8);
-          }
-        }
-      }
+      this.ctx.arc(cx - r, cy, r * 0.8, 0, Math.PI * 2);
+      this.ctx.arc(cx, cy - r * 0.3, r, 0, Math.PI * 2);
+      this.ctx.arc(cx + r, cy, r * 0.8, 0, Math.PI * 2);
+      this.ctx.arc(cx - r * 0.5, cy + r * 0.3, r * 0.6, 0, Math.PI * 2);
+      this.ctx.arc(cx + r * 0.5, cy + r * 0.3, r * 0.6, 0, Math.PI * 2);
+      this.ctx.fill();
     });
   }
 
-  // 地面
+  // 丘を描画
+  drawHills() {
+    this.ctx.fillStyle = '#228B22';
+    this.hills.forEach(hill => {
+      this.ctx.beginPath();
+      this.ctx.moveTo(hill.x, this.groundY);
+      this.ctx.quadraticCurveTo(
+        hill.x + hill.width / 2,
+        this.groundY - hill.height,
+        hill.x + hill.width,
+        this.groundY
+      );
+      this.ctx.fill();
+
+      // ハイライト
+      this.ctx.fillStyle = '#32CD32';
+      this.ctx.beginPath();
+      this.ctx.moveTo(hill.x + hill.width * 0.3, this.groundY);
+      this.ctx.quadraticCurveTo(
+        hill.x + hill.width / 2,
+        this.groundY - hill.height * 0.8,
+        hill.x + hill.width * 0.6,
+        this.groundY
+      );
+      this.ctx.fill();
+      this.ctx.fillStyle = '#228B22';
+    });
+  }
+
+  // 草むらを描画
+  drawBushes() {
+    this.ctx.fillStyle = '#228B22';
+    this.bushes.forEach(bush => {
+      const cx = bush.x + bush.width / 2;
+      const cy = this.groundY - bush.height / 2;
+      const r = bush.height / 2;
+
+      this.ctx.beginPath();
+      this.ctx.arc(cx - r * 0.8, cy, r, 0, Math.PI * 2);
+      this.ctx.arc(cx, cy - r * 0.2, r * 1.2, 0, Math.PI * 2);
+      this.ctx.arc(cx + r * 0.8, cy, r, 0, Math.PI * 2);
+      this.ctx.fill();
+    });
+  }
+
+  // 地面を描画（レンガブロック風）
   drawGround() {
-    // メイン地面
-    const groundGradient = this.ctx.createLinearGradient(0, this.groundY, 0, this.height);
-    groundGradient.addColorStop(0, '#1a1a2e');
-    groundGradient.addColorStop(1, '#0a0a0a');
+    const brickWidth = 40;
+    const brickHeight = 20;
+    const rows = Math.ceil((this.height - this.groundY) / brickHeight);
+    const cols = Math.ceil(this.width / brickWidth) + 1;
 
-    this.ctx.fillStyle = groundGradient;
-    this.ctx.fillRect(0, this.groundY, this.width, this.height - this.groundY);
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = col * brickWidth - (row % 2) * (brickWidth / 2);
+        const y = this.groundY + row * brickHeight;
 
-    // 地面ライン
-    this.ctx.strokeStyle = '#00ffcc';
-    this.ctx.lineWidth = 3;
-    this.ctx.shadowColor = '#00ffcc';
-    this.ctx.shadowBlur = 10;
-    this.ctx.beginPath();
-    this.ctx.moveTo(0, this.groundY);
-    this.ctx.lineTo(this.width, this.groundY);
-    this.ctx.stroke();
-    this.ctx.shadowBlur = 0;
+        // レンガ色
+        this.ctx.fillStyle = '#C84C0C';
+        this.ctx.fillRect(x, y, brickWidth - 2, brickHeight - 2);
+
+        // ハイライト
+        this.ctx.fillStyle = '#E87840';
+        this.ctx.fillRect(x, y, brickWidth - 2, 4);
+        this.ctx.fillRect(x, y, 4, brickHeight - 2);
+
+        // シャドウ
+        this.ctx.fillStyle = '#8B3000';
+        this.ctx.fillRect(x + brickWidth - 6, y + 4, 4, brickHeight - 6);
+        this.ctx.fillRect(x + 4, y + brickHeight - 6, brickWidth - 6, 4);
+      }
+    }
+
+    // 地面の上部ライン
+    this.ctx.fillStyle = '#00AA00';
+    this.ctx.fillRect(0, this.groundY - 8, this.width, 8);
   }
 
   // プレイヤー描画
@@ -469,128 +581,182 @@ class IFJukuGame {
       this.ctx.globalAlpha = 0.5;
     }
 
-    // グロー効果
-    this.ctx.shadowColor = p.isInvincible ? '#ffff00' : '#00ffcc';
-    this.ctx.shadowBlur = 15;
+    // 影
+    this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    this.ctx.beginPath();
+    this.ctx.ellipse(p.x + p.width / 2, this.groundY - 2, p.width / 2, 6, 0, 0, Math.PI * 2);
+    this.ctx.fill();
 
     // 体（黄色いジャケット）
-    this.ctx.fillStyle = '#f4d03f';
-    this.ctx.fillRect(p.x + 5, p.y + 15, 30, 25);
+    this.ctx.fillStyle = '#F4D03F';
+    this.ctx.fillRect(p.x + 5, p.y + 18, 30, 22);
+
+    // 腕
+    const armOffset = Math.sin(p.frame * Math.PI / 2) * 3;
+    this.ctx.fillStyle = '#F4D03F';
+    this.ctx.fillRect(p.x, p.y + 20 + armOffset, 8, 15);
+    this.ctx.fillRect(p.x + 32, p.y + 20 - armOffset, 8, 15);
 
     // 頭
-    this.ctx.fillStyle = '#fad7a0';
-    this.ctx.fillRect(p.x + 8, p.y, 24, 20);
+    this.ctx.fillStyle = '#FAD7A0';
+    this.ctx.fillRect(p.x + 8, p.y + 2, 24, 18);
 
     // 髪（茶色）
-    this.ctx.fillStyle = '#6b4423';
-    this.ctx.fillRect(p.x + 5, p.y - 3, 30, 12);
-    this.ctx.fillRect(p.x + 8, p.y + 5, 5, 8);
+    this.ctx.fillStyle = '#6B4423';
+    this.ctx.fillRect(p.x + 5, p.y - 2, 30, 10);
+    this.ctx.fillRect(p.x + 8, p.y + 6, 5, 8);
+    this.ctx.fillRect(p.x + 27, p.y + 6, 5, 8);
 
     // 目
     this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(p.x + 18, p.y + 8, 4, 4);
-    this.ctx.fillRect(p.x + 26, p.y + 8, 4, 4);
+    this.ctx.fillRect(p.x + 14, p.y + 8, 4, 5);
+    this.ctx.fillRect(p.x + 24, p.y + 8, 4, 5);
+
+    // 笑顔
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(p.x + 16, p.y + 15, 8, 2);
 
     // ズボン
-    this.ctx.fillStyle = '#2c3e50';
-    this.ctx.fillRect(p.x + 8, p.y + 40, 24, 16);
+    this.ctx.fillStyle = '#2C3E50';
+    this.ctx.fillRect(p.x + 8, p.y + 40, 24, 10);
 
     // 足（アニメーション）
-    const legOffset = Math.sin(p.frame * Math.PI / 2) * 5;
-    this.ctx.fillStyle = '#2c3e50';
-    this.ctx.fillRect(p.x + 10, p.y + 50, 8, 6 + (p.isJumping ? 0 : legOffset));
-    this.ctx.fillRect(p.x + 22, p.y + 50, 8, 6 + (p.isJumping ? 0 : -legOffset));
+    const legOffset = Math.sin(p.frame * Math.PI / 2) * 6;
+    this.ctx.fillStyle = '#8B4513';
+    this.ctx.fillRect(p.x + 8, p.y + 48, 10, 8 + (p.isJumping ? 0 : legOffset));
+    this.ctx.fillRect(p.x + 22, p.y + 48, 10, 8 + (p.isJumping ? 0 : -legOffset));
 
-    this.ctx.shadowBlur = 0;
     this.ctx.globalAlpha = 1;
   }
 
   // 障害物描画
   drawObstacle(obs) {
-    this.ctx.shadowColor = '#ff3366';
-    this.ctx.shadowBlur = 10;
-
     switch (obs.type) {
-      case 'spike':
-        // スパイク
-        this.ctx.fillStyle = '#ff3366';
-        this.ctx.beginPath();
-        this.ctx.moveTo(obs.x, obs.y + obs.height);
-        this.ctx.lineTo(obs.x + obs.width / 2, obs.y);
-        this.ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-        this.ctx.closePath();
-        this.ctx.fill();
+      case 'pipe':
+        // 土管（マリオ風）
+        this.ctx.fillStyle = '#00AA00';
+        this.ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+        // 土管の上部
+        this.ctx.fillStyle = '#00CC00';
+        this.ctx.fillRect(obs.x - 5, obs.y, obs.width + 10, 15);
+
+        // ハイライト
+        this.ctx.fillStyle = '#00FF00';
+        this.ctx.fillRect(obs.x + 5, obs.y + 15, 8, obs.height - 15);
+        this.ctx.fillRect(obs.x, obs.y, obs.width + 5, 5);
+
+        // シャドウ
+        this.ctx.fillStyle = '#008800';
+        this.ctx.fillRect(obs.x + obs.width - 8, obs.y + 15, 8, obs.height - 15);
         break;
 
-      case 'bug':
-        // バグ（虫）
-        this.ctx.fillStyle = '#ff3366';
-        this.ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-        // 足
-        const legY = Math.floor(obs.frame) % 2 === 0 ? 2 : -2;
-        this.ctx.fillRect(obs.x - 5, obs.y + obs.height - 5 + legY, 8, 3);
-        this.ctx.fillRect(obs.x + obs.width - 3, obs.y + obs.height - 5 - legY, 8, 3);
+      case 'goomba':
+        // クリボー風の敵
+        const bobY = Math.floor(obs.frame) % 2 === 0 ? 0 : 2;
+
+        // 体
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.beginPath();
+        this.ctx.arc(obs.x + obs.width / 2, obs.y + 10 + bobY, 15, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // 眉毛（怒り顔）
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(obs.x + 5, obs.y + 5 + bobY, 10, 3);
+        this.ctx.fillRect(obs.x + 20, obs.y + 5 + bobY, 10, 3);
+
         // 目
-        this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(obs.x + 5, obs.y + 5, 6, 6);
-        this.ctx.fillRect(obs.x + obs.width - 11, obs.y + 5, 6, 6);
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.fillRect(obs.x + 8, obs.y + 8 + bobY, 6, 8);
+        this.ctx.fillRect(obs.x + 21, obs.y + 8 + bobY, 6, 8);
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(obs.x + 10, obs.y + 10 + bobY, 3, 5);
+        this.ctx.fillRect(obs.x + 22, obs.y + 10 + bobY, 3, 5);
+
+        // 足
+        this.ctx.fillStyle = '#654321';
+        this.ctx.fillRect(obs.x + 3, obs.y + 22 + bobY, 12, 8);
+        this.ctx.fillRect(obs.x + 20, obs.y + 22 + bobY, 12, 8);
         break;
 
       case 'gap':
         // 穴
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-        // 危険マーク
-        this.ctx.strokeStyle = '#ff3366';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+
+        // 穴の縁
+        this.ctx.fillStyle = '#8B3000';
+        this.ctx.fillRect(obs.x - 5, obs.y - 8, 10, 16);
+        this.ctx.fillRect(obs.x + obs.width - 5, obs.y - 8, 10, 16);
         break;
     }
-
-    this.ctx.shadowBlur = 0;
   }
 
   // アイテム描画
   drawItem(item) {
-    const bounce = Math.sin(Date.now() / 200) * 3;
+    const bounce = Math.sin(Date.now() / 150) * 4;
+    const sparkle = Math.sin(Date.now() / 100) * 0.3 + 0.7;
 
     if (item.type === 'coin') {
-      // コイン
-      this.ctx.shadowColor = '#ffff00';
-      this.ctx.shadowBlur = 10;
-      this.ctx.fillStyle = '#f1c40f';
+      // コイン（回転アニメーション）
+      const scaleX = Math.abs(Math.sin(Date.now() / 200));
+
+      this.ctx.fillStyle = `rgba(255, 215, 0, ${sparkle})`;
       this.ctx.beginPath();
-      this.ctx.arc(item.x + item.width / 2, item.y + item.height / 2 + bounce, item.width / 2, 0, Math.PI * 2);
+      this.ctx.ellipse(
+        item.x + item.width / 2,
+        item.y + item.height / 2 + bounce,
+        item.width / 2 * Math.max(scaleX, 0.3),
+        item.height / 2,
+        0, 0, Math.PI * 2
+      );
       this.ctx.fill();
-      // 光沢
-      this.ctx.fillStyle = '#fff';
+
+      // コインの光沢
+      this.ctx.fillStyle = '#FFEC8B';
       this.ctx.beginPath();
-      this.ctx.arc(item.x + item.width / 2 - 3, item.y + item.height / 2 - 3 + bounce, 4, 0, Math.PI * 2);
+      this.ctx.ellipse(
+        item.x + item.width / 2 - 3,
+        item.y + item.height / 2 - 3 + bounce,
+        4 * Math.max(scaleX, 0.3),
+        4,
+        0, 0, Math.PI * 2
+      );
       this.ctx.fill();
+
     } else if (item.type === 'star') {
       // スター
-      this.ctx.shadowColor = '#00ffcc';
-      this.ctx.shadowBlur = 15;
-      this.ctx.fillStyle = '#00ffcc';
-      this.drawStar(item.x + item.width / 2, item.y + item.height / 2 + bounce, 5, item.width / 2, item.width / 4);
-    }
+      this.ctx.fillStyle = `rgba(255, 255, 0, ${sparkle})`;
+      this.drawStar(
+        item.x + item.width / 2,
+        item.y + item.height / 2 + bounce,
+        5,
+        item.width / 2,
+        item.width / 4
+      );
 
-    this.ctx.shadowBlur = 0;
+      // 目
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillRect(item.x + 8, item.y + 10 + bounce, 4, 4);
+      this.ctx.fillRect(item.x + 16, item.y + 10 + bounce, 4, 4);
+
+      // 笑顔
+      this.ctx.fillRect(item.x + 10, item.y + 16 + bounce, 8, 2);
+    }
   }
 
   // 星を描画
   drawStar(cx, cy, spikes, outerRadius, innerRadius) {
     let rot = Math.PI / 2 * 3;
-    let x = cx;
-    let y = cy;
     const step = Math.PI / spikes;
 
     this.ctx.beginPath();
     this.ctx.moveTo(cx, cy - outerRadius);
 
     for (let i = 0; i < spikes; i++) {
-      x = cx + Math.cos(rot) * outerRadius;
-      y = cy + Math.sin(rot) * outerRadius;
+      let x = cx + Math.cos(rot) * outerRadius;
+      let y = cy + Math.sin(rot) * outerRadius;
       this.ctx.lineTo(x, y);
       rot += step;
 
@@ -617,44 +783,74 @@ class IFJukuGame {
 
   // UI描画
   drawUI() {
+    const fontSize = Math.max(16, Math.floor(20 * this.scale));
+
+    // スコア背景
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    this.ctx.fillRect(10, 10, 200 * this.scale, 70 * this.scale);
+
     // スコア
-    this.ctx.fillStyle = '#00ffcc';
-    this.ctx.font = 'bold 20px "Press Start 2P", monospace';
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `bold ${fontSize}px "Press Start 2P", monospace`;
     this.ctx.textAlign = 'left';
-    this.ctx.shadowColor = '#00ffcc';
-    this.ctx.shadowBlur = 5;
-    this.ctx.fillText(`SCORE: ${this.score}`, 20, 35);
+    this.ctx.fillText(`SCORE`, 20, 35 * this.scale + 10);
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.fillText(`${this.score}`, 20, 60 * this.scale + 10);
 
-    // 距離（プログレスバー）
+    // 距離プログレスバー
     const progress = Math.min(this.distance / this.goalDistance, 1);
-    this.ctx.fillStyle = 'rgba(0, 255, 204, 0.3)';
-    this.ctx.fillRect(20, 50, 200, 15);
-    this.ctx.fillStyle = '#00ffcc';
-    this.ctx.fillRect(20, 50, 200 * progress, 15);
+    const barWidth = Math.min(200, this.width - 40);
+    const barX = this.width - barWidth - 20;
 
-    this.ctx.font = '12px "Press Start 2P", monospace';
-    this.ctx.fillText(`${Math.floor(progress * 100)}%`, 230, 62);
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    this.ctx.fillRect(barX - 10, 10, barWidth + 20, 40 * this.scale);
 
-    this.ctx.shadowBlur = 0;
+    this.ctx.fillStyle = '#333';
+    this.ctx.fillRect(barX, 20, barWidth, 20 * this.scale);
+
+    this.ctx.fillStyle = '#00FF00';
+    this.ctx.fillRect(barX, 20, barWidth * progress, 20 * this.scale);
+
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = `${Math.floor(12 * this.scale)}px monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(`GOAL ${Math.floor(progress * 100)}%`, barX + barWidth / 2, 20 + 15 * this.scale);
   }
 
   // スタート画面
   drawStartScreen() {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    this.ctx.fillStyle = '#00ffcc';
-    this.ctx.font = 'bold 36px "Press Start 2P", monospace';
-    this.ctx.textAlign = 'center';
-    this.ctx.shadowColor = '#00ffcc';
-    this.ctx.shadowBlur = 20;
-    this.ctx.fillText('if(RUN)', this.width / 2, this.height / 2 - 50);
+    const titleSize = Math.max(24, Math.floor(40 * this.scale));
+    const subTitleSize = Math.max(16, Math.floor(24 * this.scale));
+    const textSize = Math.max(12, Math.floor(16 * this.scale));
 
-    this.ctx.font = '16px "Noto Sans JP", sans-serif';
-    this.ctx.fillStyle = '#e0e0e0';
+    // タイトル
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = `bold ${titleSize}px "Press Start 2P", monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.shadowColor = '#FF6600';
+    this.ctx.shadowBlur = 10;
+    this.ctx.fillText('if(Run)', this.width / 2, this.height / 2 - 60 * this.scale);
+
+    // サブタイトル
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `${subTitleSize}px "Noto Sans JP", sans-serif`;
     this.ctx.shadowBlur = 0;
-    this.ctx.fillText('スペースキー or クリックでスタート', this.width / 2, this.height / 2 + 20);
-    this.ctx.fillText('スペースキー or タップでジャンプ', this.width / 2, this.height / 2 + 50);
+    this.ctx.fillText('~塾長の挑戦~', this.width / 2, this.height / 2 - 20 * this.scale);
+
+    // 操作説明
+    this.ctx.fillStyle = '#90EE90';
+    this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText('タップ or スペースキーでジャンプ!', this.width / 2, this.height / 2 + 30 * this.scale);
+
+    // スタートボタン風
+    this.ctx.fillStyle = '#FF6600';
+    this.ctx.fillRect(this.width / 2 - 80, this.height / 2 + 50 * this.scale, 160, 40);
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = `bold ${textSize}px monospace`;
+    this.ctx.fillText('START', this.width / 2, this.height / 2 + 75 * this.scale);
   }
 
   // ゲームオーバー画面
@@ -662,41 +858,61 @@ class IFJukuGame {
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    this.ctx.fillStyle = '#ff3366';
-    this.ctx.font = 'bold 36px "Press Start 2P", monospace';
+    const titleSize = Math.max(24, Math.floor(36 * this.scale));
+    const scoreSize = Math.max(18, Math.floor(24 * this.scale));
+    const textSize = Math.max(12, Math.floor(16 * this.scale));
+
+    this.ctx.fillStyle = '#FF4444';
+    this.ctx.font = `bold ${titleSize}px "Press Start 2P", monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.shadowColor = '#ff3366';
-    this.ctx.shadowBlur = 20;
-    this.ctx.fillText('GAME OVER', this.width / 2, this.height / 2 - 50);
+    this.ctx.shadowColor = '#FF0000';
+    this.ctx.shadowBlur = 15;
+    this.ctx.fillText('GAME OVER', this.width / 2, this.height / 2 - 40 * this.scale);
 
-    this.ctx.fillStyle = '#e0e0e0';
-    this.ctx.font = '20px "Press Start 2P", monospace';
     this.ctx.shadowBlur = 0;
-    this.ctx.fillText(`SCORE: ${this.score}`, this.width / 2, this.height / 2 + 10);
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = `${scoreSize}px "Press Start 2P", monospace`;
+    this.ctx.fillText(`SCORE: ${this.score}`, this.width / 2, this.height / 2 + 10 * this.scale);
 
-    this.ctx.font = '16px "Noto Sans JP", sans-serif';
-    this.ctx.fillText('クリックでリトライ', this.width / 2, this.height / 2 + 60);
+    // リトライボタン風
+    this.ctx.fillStyle = '#4444FF';
+    this.ctx.fillRect(this.width / 2 - 80, this.height / 2 + 40 * this.scale, 160, 40);
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = `bold ${textSize}px monospace`;
+    this.ctx.fillText('RETRY', this.width / 2, this.height / 2 + 65 * this.scale);
   }
 
   // クリア画面
   drawClearScreen() {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    this.ctx.fillStyle = '#00ff00';
-    this.ctx.font = 'bold 36px "Press Start 2P", monospace';
+    const titleSize = Math.max(24, Math.floor(40 * this.scale));
+    const scoreSize = Math.max(18, Math.floor(24 * this.scale));
+    const textSize = Math.max(12, Math.floor(16 * this.scale));
+
+    this.ctx.fillStyle = '#00FF00';
+    this.ctx.font = `bold ${titleSize}px "Press Start 2P", monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.shadowColor = '#00ff00';
+    this.ctx.shadowColor = '#00FF00';
     this.ctx.shadowBlur = 20;
-    this.ctx.fillText('CLEAR!', this.width / 2, this.height / 2 - 50);
+    this.ctx.fillText('CLEAR!', this.width / 2, this.height / 2 - 50 * this.scale);
 
-    this.ctx.fillStyle = '#e0e0e0';
-    this.ctx.font = '20px "Press Start 2P", monospace';
     this.ctx.shadowBlur = 0;
-    this.ctx.fillText(`SCORE: ${this.score}`, this.width / 2, this.height / 2 + 10);
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = `${scoreSize}px "Press Start 2P", monospace`;
+    this.ctx.fillText(`SCORE: ${this.score}`, this.width / 2, this.height / 2);
 
-    this.ctx.font = '16px "Noto Sans JP", sans-serif';
-    this.ctx.fillText('クリックでもう一度', this.width / 2, this.height / 2 + 60);
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText('おめでとう! 塾長の冒険は続く...', this.width / 2, this.height / 2 + 40 * this.scale);
+
+    // もう一度ボタン風
+    this.ctx.fillStyle = '#00AA00';
+    this.ctx.fillRect(this.width / 2 - 80, this.height / 2 + 60 * this.scale, 160, 40);
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = `bold ${textSize}px monospace`;
+    this.ctx.fillText('PLAY AGAIN', this.width / 2, this.height / 2 + 85 * this.scale);
   }
 
   // ゲームループ
@@ -711,5 +927,64 @@ class IFJukuGame {
   }
 }
 
+// 別タブでフルスクリーンゲームを開く
+function openFullscreenGame() {
+  const gameWindow = window.open('', '_blank', 'width=1200,height=700');
+  gameWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>if(Run) ~塾長の挑戦~ | if(塾)</title>
+      <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          background: #1a1a2e;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          font-family: 'Noto Sans JP', sans-serif;
+        }
+        .game-container {
+          text-align: center;
+        }
+        h1 {
+          color: #FFD700;
+          font-family: 'Press Start 2P', monospace;
+          margin-bottom: 20px;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        canvas {
+          border: 4px solid #333;
+          border-radius: 8px;
+          box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .controls {
+          margin-top: 15px;
+          color: #aaa;
+          font-size: 14px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="game-container">
+        <h1>if(Run) ~塾長の挑戦~</h1>
+        <canvas id="fullscreen-game-canvas"></canvas>
+        <p class="controls">操作: スペースキー / タップ でジャンプ</p>
+      </div>
+      <script>${IFRunGame.toString()}</script>
+      <script>
+        new IFRunGame('fullscreen-game-canvas', { fullscreen: true });
+      </script>
+    </body>
+    </html>
+  `);
+  gameWindow.document.close();
+}
+
 // グローバルに公開
-window.IFJukuGame = IFJukuGame;
+window.IFRunGame = IFRunGame;
+window.openFullscreenGame = openFullscreenGame;
