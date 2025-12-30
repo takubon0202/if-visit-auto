@@ -14,16 +14,34 @@ class IFRunGame {
     this.setupSize();
 
     // ゲーム状態
-    this.gameState = 'start'; // start, playing, gameover, clear
+    this.gameState = 'start'; // start, playing, gameover, clear, stageClear
     this.score = 0;
+    this.totalScore = 0;
     this.distance = 0;
-    this.goalDistance = 3000;
+
+    // ステージ設定（5ステージ）
+    this.currentStage = 1;
+    this.maxStage = 5;
+    this.stageSettings = {
+      1: { goalDistance: 2000, name: 'はじまりの丘', obstacleRate: 0.4, bgColor: '#5C94FC' },
+      2: { goalDistance: 2500, name: '森のステージ', obstacleRate: 0.5, bgColor: '#4A8A4A' },
+      3: { goalDistance: 3000, name: '砂漠ステージ', obstacleRate: 0.55, bgColor: '#DEB887' },
+      4: { goalDistance: 3500, name: '夜のステージ', obstacleRate: 0.6, bgColor: '#1a1a3e' },
+      5: { goalDistance: 4000, name: '塾長城への道', obstacleRate: 0.65, bgColor: '#8B0000' }
+    };
+    this.goalDistance = this.stageSettings[1].goalDistance;
+
+    // ゴールポール関連
+    this.goalPoleX = 0;
+    this.goalReached = false;
+    this.flagY = 0;
+    this.flagAnimating = false;
 
     // スピード設定
     this.speedSettings = {
-      slow: { baseSpeed: 2.5, label: 'ゆっくり', color: '#00CC00', speedIncrease: 0.2 },
-      normal: { baseSpeed: 4, label: 'ふつう', color: '#FFAA00', speedIncrease: 0.4 },
-      fast: { baseSpeed: 6, label: 'はやい', color: '#FF4444', speedIncrease: 0.6 }
+      slow: { baseSpeed: 2.5, label: 'ゆっくり', color: '#00CC00', speedIncrease: 0.15 },
+      normal: { baseSpeed: 3.5, label: 'ふつう', color: '#FFAA00', speedIncrease: 0.25 },
+      fast: { baseSpeed: 5, label: 'はやい', color: '#FF4444', speedIncrease: 0.4 }
     };
     this.selectedSpeed = 'slow'; // デフォルトはゆっくり
     this.speedButtonRects = []; // クリック判定用
@@ -177,7 +195,8 @@ class IFRunGame {
         }
       } else if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
-        if (this.gameState === 'gameover' || this.gameState === 'clear') this.resetGame();
+        if (this.gameState === 'stageClear') this.nextStage();
+        else if (this.gameState === 'gameover' || this.gameState === 'clear') this.resetGame();
         else if (this.gameState === 'playing') this.jump();
       }
     });
@@ -216,6 +235,8 @@ class IFRunGame {
           return;
         }
       }
+    } else if (this.gameState === 'stageClear') {
+      this.nextStage();
     } else if (this.gameState === 'gameover' || this.gameState === 'clear') {
       this.resetGame();
     } else if (this.gameState === 'playing') {
@@ -230,11 +251,43 @@ class IFRunGame {
     this.distance = 0;
     this.obstacles = [];
     this.items = [];
+    this.goalReached = false;
+    this.flagAnimating = false;
+    this.flagY = 0;
+    this.goalDistance = this.stageSettings[this.currentStage].goalDistance;
     this.spawnObstacle();
   }
 
-  // リセット
+  // 次のステージへ
+  nextStage() {
+    this.currentStage++;
+    this.totalScore += this.score;
+    this.goalDistance = this.stageSettings[this.currentStage].goalDistance;
+    this.resetForNextStage();
+  }
+
+  // 次のステージ用リセット
+  resetForNextStage() {
+    this.player.x = 100;
+    this.player.y = this.groundY - this.player.height;
+    this.player.velocityY = 0;
+    this.player.isJumping = false;
+    this.player.isInvincible = false;
+    this.scrollSpeed = this.baseScrollSpeed;
+    this.distance = 0;
+    this.obstacles = [];
+    this.items = [];
+    this.goalReached = false;
+    this.flagAnimating = false;
+    this.flagY = 0;
+    this.gameState = 'playing';
+    this.spawnObstacle();
+  }
+
+  // 最初からリセット
   resetGame() {
+    this.currentStage = 1;
+    this.totalScore = 0;
     this.player.x = 100;
     this.player.y = this.groundY - this.player.height;
     this.player.velocityY = 0;
@@ -326,9 +379,31 @@ class IFRunGame {
     // 距離更新
     this.distance += this.scrollSpeed;
 
-    // ゴール判定
-    if (this.distance >= this.goalDistance) {
-      this.gameState = 'clear';
+    // ゴールポール到達判定
+    if (this.distance >= this.goalDistance - 100 && !this.goalReached) {
+      this.goalReached = true;
+      this.flagAnimating = true;
+      this.flagY = 0;
+    }
+
+    // ゴール到達後のフラグアニメーション
+    if (this.flagAnimating) {
+      this.flagY += 3;
+      if (this.flagY >= 150) {
+        this.flagAnimating = false;
+        // ステージクリア判定
+        if (this.currentStage >= this.maxStage) {
+          this.gameState = 'clear'; // 全ステージクリア
+        } else {
+          this.gameState = 'stageClear'; // ステージクリア
+        }
+        return;
+      }
+    }
+
+    // ゴールに到達したらスクロール停止
+    if (this.goalReached) {
+      this.scrollSpeed = 0;
       return;
     }
 
@@ -520,6 +595,8 @@ class IFRunGame {
       this.drawStartScreen();
     } else if (this.gameState === 'gameover') {
       this.drawGameOverScreen();
+    } else if (this.gameState === 'stageClear') {
+      this.drawStageClearScreen();
     } else if (this.gameState === 'clear') {
       this.drawClearScreen();
     }
@@ -629,24 +706,22 @@ class IFRunGame {
     // ゴールまでの残り距離
     const remainingDistance = this.goalDistance - this.distance;
 
-    // ゴールが画面に近づいたら表示（残り500m以内）
-    if (remainingDistance <= 500 && remainingDistance > 0) {
-      // ゴールのX位置を計算
-      const goalX = this.width - 100 + (500 - remainingDistance) * 0.5;
-
-      // 城を描画（ゴールに到達すると表示位置が近づく）
-      this.drawCastle(goalX);
+    // ゴールポールが画面に近づいたら表示（残り300以内）
+    if (remainingDistance <= 300) {
+      // ゴールポールのX位置を計算
+      const poleX = this.width - 80 + (300 - remainingDistance) * 0.8;
+      this.drawFlagPole(poleX);
     }
 
     // ゴールまでの距離表示（常に表示）
-    if (this.distance > 0) {
+    if (this.distance > 0 && !this.goalReached) {
       const remainingM = Math.max(0, Math.floor((this.goalDistance - this.distance) / 10));
 
       // 残り距離が少なくなると色が変わる
       let distanceColor = '#FFFFFF';
-      if (remainingM <= 100) {
+      if (remainingM <= 50) {
         distanceColor = '#00FF00';
-      } else if (remainingM <= 200) {
+      } else if (remainingM <= 100) {
         distanceColor = '#FFFF00';
       }
 
@@ -660,82 +735,61 @@ class IFRunGame {
     }
   }
 
-  // 城を描画
-  drawCastle(x) {
-    const castleWidth = 80;
-    const castleHeight = 120;
-    const baseY = this.groundY - castleHeight;
+  // フラッグポールを描画（マリオ風）
+  drawFlagPole(x) {
+    const poleHeight = 180;
+    const poleY = this.groundY - poleHeight;
 
-    // 城本体
-    this.ctx.fillStyle = '#D4A574';
-    this.ctx.fillRect(x, baseY + 40, castleWidth, castleHeight - 40);
-
-    // 城の屋根（三角）
-    this.ctx.fillStyle = '#8B0000';
-    this.ctx.beginPath();
-    this.ctx.moveTo(x - 10, baseY + 40);
-    this.ctx.lineTo(x + castleWidth / 2, baseY);
-    this.ctx.lineTo(x + castleWidth + 10, baseY + 40);
-    this.ctx.closePath();
-    this.ctx.fill();
-
-    // 塔（左）
-    this.ctx.fillStyle = '#D4A574';
-    this.ctx.fillRect(x - 5, baseY + 20, 20, 100);
-    this.ctx.fillStyle = '#8B0000';
-    this.ctx.beginPath();
-    this.ctx.moveTo(x - 10, baseY + 20);
-    this.ctx.lineTo(x + 5, baseY - 5);
-    this.ctx.lineTo(x + 20, baseY + 20);
-    this.ctx.closePath();
-    this.ctx.fill();
-
-    // 塔（右）
-    this.ctx.fillStyle = '#D4A574';
-    this.ctx.fillRect(x + castleWidth - 15, baseY + 20, 20, 100);
-    this.ctx.fillStyle = '#8B0000';
-    this.ctx.beginPath();
-    this.ctx.moveTo(x + castleWidth - 20, baseY + 20);
-    this.ctx.lineTo(x + castleWidth - 5, baseY - 5);
-    this.ctx.lineTo(x + castleWidth + 10, baseY + 20);
-    this.ctx.closePath();
-    this.ctx.fill();
-
-    // 門
-    this.ctx.fillStyle = '#4A3728';
-    this.ctx.fillRect(x + castleWidth / 2 - 15, baseY + 80, 30, 40);
-
-    // 窓
-    this.ctx.fillStyle = '#87CEEB';
-    this.ctx.fillRect(x + 15, baseY + 55, 15, 20);
-    this.ctx.fillRect(x + castleWidth - 30, baseY + 55, 15, 20);
-
-    // GOAL テキスト
-    this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = `bold ${Math.max(12, 14 * this.scale)}px "Press Start 2P", monospace`;
-    this.ctx.textAlign = 'center';
-    this.ctx.shadowColor = '#000';
-    this.ctx.shadowBlur = 3;
-    this.ctx.fillText('GOAL', x + castleWidth / 2, baseY - 15);
-    this.ctx.shadowBlur = 0;
-
-    // 旗
-    const flagX = x + castleWidth / 2;
-    const flagY = baseY - 10;
-
-    // 旗竿
+    // ポールの土台（レンガ）
     this.ctx.fillStyle = '#8B4513';
-    this.ctx.fillRect(flagX - 2, flagY - 50, 4, 50);
+    this.ctx.fillRect(x - 15, this.groundY - 20, 30, 20);
+    this.ctx.fillStyle = '#654321';
+    this.ctx.fillRect(x - 12, this.groundY - 18, 24, 4);
 
-    // 旗（なびく効果）
-    const wave = Math.sin(Date.now() / 200) * 3;
-    this.ctx.fillStyle = '#FF0000';
+    // ポール本体
+    this.ctx.fillStyle = '#228B22';
+    this.ctx.fillRect(x - 4, poleY, 8, poleHeight - 20);
+
+    // ポール頂上の玉
+    this.ctx.fillStyle = '#FFD700';
     this.ctx.beginPath();
-    this.ctx.moveTo(flagX + 2, flagY - 50);
-    this.ctx.lineTo(flagX + 30 + wave, flagY - 40);
-    this.ctx.lineTo(flagX + 2, flagY - 30);
+    this.ctx.arc(x, poleY, 10, 0, Math.PI * 2);
+    this.ctx.fill();
+
+    // 旗（下がるアニメーション）
+    const flagTopY = poleY + 10 + this.flagY;
+    const flagHeight = 40;
+    const flagWidth = 50;
+
+    // 旗のなびき
+    const wave = Math.sin(Date.now() / 150) * 5;
+
+    // 旗本体（緑）
+    this.ctx.fillStyle = '#00AA00';
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + 4, flagTopY);
+    this.ctx.lineTo(x + flagWidth + wave, flagTopY + flagHeight / 3);
+    this.ctx.lineTo(x + flagWidth + wave * 0.5, flagTopY + flagHeight * 2 / 3);
+    this.ctx.lineTo(x + 4, flagTopY + flagHeight);
     this.ctx.closePath();
     this.ctx.fill();
+
+    // 旗の模様（if塾マーク）
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `bold ${Math.max(10, 12 * this.scale)}px monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('if', x + 25, flagTopY + flagHeight / 2 + 5);
+
+    // GOAL表示
+    if (!this.goalReached) {
+      this.ctx.fillStyle = '#FFD700';
+      this.ctx.font = `bold ${Math.max(14, 18 * this.scale)}px "Press Start 2P", monospace`;
+      this.ctx.textAlign = 'center';
+      this.ctx.shadowColor = '#000';
+      this.ctx.shadowBlur = 5;
+      this.ctx.fillText('GOAL', x, poleY - 20);
+      this.ctx.shadowBlur = 0;
+    }
   }
 
   // プレイヤー描画
@@ -949,38 +1003,70 @@ class IFRunGame {
 
   // UI描画
   drawUI() {
-    const fontSize = Math.max(16, Math.floor(20 * this.scale));
+    const fontSize = Math.max(14, Math.floor(16 * this.scale));
+    const smallFontSize = Math.max(10, Math.floor(12 * this.scale));
 
-    // スコア背景
+    // ステージ・スコア背景
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    this.ctx.fillRect(10, 10, 200 * this.scale, 70 * this.scale);
+    this.ctx.fillRect(10, 10, 180 * this.scale, 85 * this.scale);
+
+    // ステージ表示
+    this.ctx.fillStyle = '#00FFCC';
+    this.ctx.font = `bold ${smallFontSize}px monospace`;
+    this.ctx.textAlign = 'left';
+    const stageName = this.stageSettings[this.currentStage].name;
+    this.ctx.fillText(`STAGE ${this.currentStage}`, 20, 28);
+
+    this.ctx.fillStyle = '#AAAAAA';
+    this.ctx.font = `${Math.floor(smallFontSize * 0.9)}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText(stageName, 20, 45);
 
     // スコア
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = `bold ${fontSize}px "Press Start 2P", monospace`;
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText(`SCORE`, 20, 35 * this.scale + 10);
+    this.ctx.font = `bold ${smallFontSize}px monospace`;
+    this.ctx.fillText(`SCORE`, 20, 65);
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.fillText(`${this.score}`, 20, 60 * this.scale + 10);
+    this.ctx.font = `bold ${fontSize}px "Press Start 2P", monospace`;
+    this.ctx.fillText(`${this.score}`, 20, 85);
 
     // 距離プログレスバー
     const progress = Math.min(this.distance / this.goalDistance, 1);
-    const barWidth = Math.min(200, this.width - 40);
+    const barWidth = Math.min(180, this.width * 0.2);
     const barX = this.width - barWidth - 20;
 
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    this.ctx.fillRect(barX - 10, 10, barWidth + 20, 40 * this.scale);
+    this.ctx.fillRect(barX - 10, 10, barWidth + 20, 45 * this.scale);
 
+    // ステージインジケーター（5つの丸）
+    const indicatorY = 20;
+    const indicatorGap = (barWidth - 20) / 5;
+    for (let i = 1; i <= 5; i++) {
+      const ix = barX + (i - 0.5) * indicatorGap;
+      this.ctx.beginPath();
+      this.ctx.arc(ix, indicatorY, 6, 0, Math.PI * 2);
+      if (i < this.currentStage) {
+        this.ctx.fillStyle = '#00FF00'; // クリア済み
+      } else if (i === this.currentStage) {
+        this.ctx.fillStyle = '#FFD700'; // 現在
+      } else {
+        this.ctx.fillStyle = '#444'; // 未プレイ
+      }
+      this.ctx.fill();
+      this.ctx.strokeStyle = '#FFF';
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+    }
+
+    // プログレスバー
     this.ctx.fillStyle = '#333';
-    this.ctx.fillRect(barX, 20, barWidth, 20 * this.scale);
-
+    this.ctx.fillRect(barX, 35, barWidth, 12);
     this.ctx.fillStyle = '#00FF00';
-    this.ctx.fillRect(barX, 20, barWidth * progress, 20 * this.scale);
+    this.ctx.fillRect(barX, 35, barWidth * progress, 12);
 
     this.ctx.fillStyle = '#FFF';
-    this.ctx.font = `${Math.floor(12 * this.scale)}px monospace`;
+    this.ctx.font = `${Math.floor(10 * this.scale)}px monospace`;
     this.ctx.textAlign = 'center';
-    this.ctx.fillText(`GOAL ${Math.floor(progress * 100)}%`, barX + barWidth / 2, 20 + 15 * this.scale);
+    this.ctx.fillText(`${Math.floor(progress * 100)}%`, barX + barWidth / 2, 45);
   }
 
   // スタート画面
@@ -1093,37 +1179,97 @@ class IFRunGame {
     this.ctx.fillText('RETRY', this.width / 2, this.height / 2 + 65 * this.scale);
   }
 
-  // クリア画面
-  drawClearScreen() {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  // ステージクリア画面
+  drawStageClearScreen() {
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    const titleSize = Math.max(24, Math.floor(40 * this.scale));
-    const scoreSize = Math.max(18, Math.floor(24 * this.scale));
-    const textSize = Math.max(12, Math.floor(16 * this.scale));
+    const titleSize = Math.max(20, Math.floor(32 * this.scale));
+    const stageSize = Math.max(16, Math.floor(22 * this.scale));
+    const scoreSize = Math.max(14, Math.floor(18 * this.scale));
+    const textSize = Math.max(12, Math.floor(14 * this.scale));
 
+    // STAGE CLEAR
     this.ctx.fillStyle = '#00FF00';
     this.ctx.font = `bold ${titleSize}px "Press Start 2P", monospace`;
     this.ctx.textAlign = 'center';
     this.ctx.shadowColor = '#00FF00';
-    this.ctx.shadowBlur = 20;
-    this.ctx.fillText('CLEAR!', this.width / 2, this.height / 2 - 50 * this.scale);
+    this.ctx.shadowBlur = 15;
+    this.ctx.fillText('STAGE CLEAR!', this.width / 2, this.height / 2 - 80 * this.scale);
 
+    // ステージ名
     this.ctx.shadowBlur = 0;
     this.ctx.fillStyle = '#FFD700';
-    this.ctx.font = `${scoreSize}px "Press Start 2P", monospace`;
-    this.ctx.fillText(`SCORE: ${this.score}`, this.width / 2, this.height / 2);
+    this.ctx.font = `${stageSize}px "Noto Sans JP", sans-serif`;
+    const stageName = this.stageSettings[this.currentStage].name;
+    this.ctx.fillText(`STAGE ${this.currentStage}: ${stageName}`, this.width / 2, this.height / 2 - 40 * this.scale);
 
+    // スコア
     this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
-    this.ctx.fillText('おめでとう! 塾長の冒険は続く...', this.width / 2, this.height / 2 + 40 * this.scale);
+    this.ctx.font = `${scoreSize}px monospace`;
+    this.ctx.fillText(`STAGE SCORE: ${this.score}`, this.width / 2, this.height / 2);
+    this.ctx.fillText(`TOTAL SCORE: ${this.totalScore + this.score}`, this.width / 2, this.height / 2 + 25 * this.scale);
 
-    // もう一度ボタン風
-    this.ctx.fillStyle = '#00AA00';
-    this.ctx.fillRect(this.width / 2 - 80, this.height / 2 + 60 * this.scale, 160, 40);
+    // 次のステージ情報
+    if (this.currentStage < this.maxStage) {
+      const nextStageName = this.stageSettings[this.currentStage + 1].name;
+      this.ctx.fillStyle = '#90EE90';
+      this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
+      this.ctx.fillText(`次: STAGE ${this.currentStage + 1} - ${nextStageName}`, this.width / 2, this.height / 2 + 60 * this.scale);
+    }
+
+    // 次へボタン
+    this.ctx.fillStyle = '#4444FF';
+    this.ctx.fillRect(this.width / 2 - 90, this.height / 2 + 85 * this.scale, 180, 45);
     this.ctx.fillStyle = '#FFF';
     this.ctx.font = `bold ${textSize}px monospace`;
-    this.ctx.fillText('PLAY AGAIN', this.width / 2, this.height / 2 + 85 * this.scale);
+    this.ctx.fillText('NEXT STAGE', this.width / 2, this.height / 2 + 112 * this.scale);
+  }
+
+  // 全クリア画面（ステージ5クリア後）
+  drawClearScreen() {
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillRect(0, 0, this.width, this.height);
+
+    const titleSize = Math.max(20, Math.floor(36 * this.scale));
+    const subTitleSize = Math.max(16, Math.floor(24 * this.scale));
+    const scoreSize = Math.max(14, Math.floor(20 * this.scale));
+    const textSize = Math.max(12, Math.floor(16 * this.scale));
+
+    // GAME CLEAR
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = `bold ${titleSize}px "Press Start 2P", monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.shadowColor = '#FFD700';
+    this.ctx.shadowBlur = 20;
+    this.ctx.fillText('GAME CLEAR!', this.width / 2, this.height / 2 - 90 * this.scale);
+
+    // おめでとう
+    this.ctx.shadowBlur = 0;
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `${subTitleSize}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText('全5ステージクリア！', this.width / 2, this.height / 2 - 50 * this.scale);
+
+    // 最終スコア
+    const finalScore = this.totalScore + this.score;
+    this.ctx.fillStyle = '#00FF00';
+    this.ctx.font = `bold ${scoreSize}px "Press Start 2P", monospace`;
+    this.ctx.fillText(`FINAL SCORE`, this.width / 2, this.height / 2 - 10 * this.scale);
+    this.ctx.fillStyle = '#FFD700';
+    this.ctx.font = `bold ${Math.floor(scoreSize * 1.3)}px "Press Start 2P", monospace`;
+    this.ctx.fillText(`${finalScore}`, this.width / 2, this.height / 2 + 25 * this.scale);
+
+    // メッセージ
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.font = `${textSize}px "Noto Sans JP", sans-serif`;
+    this.ctx.fillText('おめでとう！塾長の冒険は大成功！', this.width / 2, this.height / 2 + 60 * this.scale);
+
+    // もう一度ボタン
+    this.ctx.fillStyle = '#FF6600';
+    this.ctx.fillRect(this.width / 2 - 100, this.height / 2 + 85 * this.scale, 200, 45);
+    this.ctx.fillStyle = '#FFF';
+    this.ctx.font = `bold ${textSize}px monospace`;
+    this.ctx.fillText('PLAY AGAIN', this.width / 2, this.height / 2 + 112 * this.scale);
   }
 
   // ゲームループ
