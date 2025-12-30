@@ -13,6 +13,7 @@
 7. **Evaluator Agent** - 品質評価・採点（90%以上で合格）
 8. **Visitor Agent** - 見学予定者視点での評価（3倍厳格化）
 9. **README Update Agent** - README自動更新
+10. **Game Agent** - マリオ風ランナーゲーム開発（子ども向け）
 
 ## スラッシュコマンド
 

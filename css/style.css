@@ -1476,3 +1476,72 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 50%;
   box-shadow: 0 0 5px var(--primary-color);
 }
+
+/* ----- Game Section (ゲームセクション) ----- */
+.game-section {
+  padding: var(--space-2xl) 0;
+  background: linear-gradient(180deg, var(--bg-color) 0%, #0f0f1a 100%);
+}
+
+.game-section__container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+  text-align: center;
+}
+
+.game-section__description {
+  color: #c0c0c0;
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: var(--space-lg);
+}
+
+.game-section__wrapper {
+  position: relative;
+  display: inline-block;
+  border: 2px solid rgba(0, 255, 204, 0.5);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0, 255, 204, 0.3), inset 0 0 30px rgba(0, 255, 204, 0.1);
+}
+
+.game-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #0a0a0a;
+}
+
+.game-section__controls {
+  margin-top: var(--space-md);
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.game-control {
+  color: #a0a0a0;
+  font-size: 0.9rem;
+}
+
+.game-control kbd {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(0, 255, 204, 0.1);
+  border: 1px solid rgba(0, 255, 204, 0.3);
+  border-radius: 4px;
+  color: var(--primary-color);
+  font-family: monospace;
+  font-size: 0.85rem;
+  margin: 0 2px;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 850px) {
+  .game-canvas {
+    width: 100%;
+    height: auto;
+  }
+}
